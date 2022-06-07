@@ -1,26 +1,12 @@
 version: "3"
 
 services:
-  traefik:
-    image: traefik:2.5
-    ports:
-      - 80:80
-    depends_on:
-      - odoo
-      - postgres
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-    restart: unless-stopped
-    command:
-      - --entrypoints.web.address=:80
-      - --providers.docker=true
-    labels:
-      - traefik.enable=false
-
   odoo:
-    image: registry.gitlab.com/mplus-software/containers/odoo/odoo15:latest
+    image: registry.gitlab.com/mplus-software/odoo:15.0
     depends_on:
       - postgres
+    ports:
+      - 8069:8069
     volumes:
       - odoo-data:/opt/odoo/data
       - pip-cache:/opt/odoo/pip-cache
@@ -35,12 +21,6 @@ services:
       - OPTIONS__PROXY_MODE=True
       - OPTIONS__LIST_DB=True
     restart: unless-stopped
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.odoo.entrypoints=web
-      - traefik.http.routers.odoo.rule=Host(`odoo.localhost`)
-      - traefik.http.routers.odoo.service=odoo
-      - traefik.http.services.odoo.loadbalancer.server.port=8069
 
   postgres:
     image: postgres:14
@@ -53,8 +33,6 @@ services:
     volumes:
       - odoo-db:/var/lib/postgresql/data
     restart: unless-stopped
-    labels:
-      - traefik.enable=false
 
 volumes:
   pip-cache:

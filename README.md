@@ -54,7 +54,7 @@ Mount a volume to persist data between restarts.
 If modules fail to install because of missing build dependencies (e.g. pycups), you may want to build your own container using this container as the base image. (e.g. Odoo 14)
 
 ```Dockerfile
-FROM registry.gitlab.com/mplus-software/containers/odoo/ocommunity/14.0:latest
+FROM registry.gitlab.com/mplus-software/odoo:14.0
 COPY ./requirements.txt /requirements.txt
 RUN apt install libcups2-dev -y
 USER odoo
