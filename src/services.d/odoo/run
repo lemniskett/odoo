@@ -1,0 +1,17 @@
+#!/bin/sh
+
+cd /opt/odoo
+
+# Workaround of https://github.com/just-containers/s6-overlay/issues/374
+export HOME=/opt/odoo
+
+if [ ! -z "$ODOO_DRY_RUN" ]; then
+    secs=0
+    while true; do
+        sleep 300
+        secs=$((secs+300))
+        echo "Dry run: $secs seconds have passed" >&2
+    done
+fi
+
+exec s6-setuidgid odoo python server/odoo-bin ${OARGS}

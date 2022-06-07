@@ -1,0 +1,5 @@
+#!/bin/sh
+
+if [ ! -z "$ONESHOT" ]; then
+    exec s6-svscanctl -t /var/run/s6/services
+fi

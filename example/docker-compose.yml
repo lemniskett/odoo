@@ -1,0 +1,62 @@
+version: "3"
+
+services:
+  traefik:
+    image: traefik:2.5
+    ports:
+      - 80:80
+    depends_on:
+      - odoo
+      - postgres
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    command:
+      - --entrypoints.web.address=:80
+      - --providers.docker=true
+    labels:
+      - traefik.enable=false
+
+  odoo:
+    image: registry.gitlab.com/mplus-software/containers/odoo/odoo15:latest
+    depends_on:
+      - postgres
+    volumes:
+      - odoo-data:/opt/odoo/data
+      - pip-cache:/opt/odoo/pip-cache
+      - ./logs:/opt/odoo/logs
+    environment:
+      - OUID=1000
+      - OGID=1000
+      - OPTIONS__ADMIN_PASSWD=mplus123
+      - OPTIONS__DB_HOST=postgres
+      - OPTIONS__DB_USER=odoo
+      - OPTIONS__DB_PASSWORD=odoo
+      - OPTIONS__PROXY_MODE=True
+      - OPTIONS__LIST_DB=True
+    restart: unless-stopped
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.odoo.entrypoints=web
+      - traefik.http.routers.odoo.rule=Host(`odoo.localhost`)
+      - traefik.http.routers.odoo.service=odoo
+      - traefik.http.services.odoo.loadbalancer.server.port=8069
+
+  postgres:
+    image: postgres:14
+    ports:
+      - 127.0.0.1:5432:5432
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=odoo
+      - POSTGRES_PASSWORD=odoo
+    volumes:
+      - odoo-db:/var/lib/postgresql/data
+    restart: unless-stopped
+    labels:
+      - traefik.enable=false
+
+volumes:
+  pip-cache:
+  odoo-db:
+  odoo-data:
