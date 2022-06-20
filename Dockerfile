@@ -96,7 +96,8 @@ ENV \
     OPTIONS__LOGFILE=logs/odoo${ODOO_VER}.log \
     OUID=2000 \
     OGID=2000 \
-    OARGS=--config=etc/odoo.conf
+    OARGS=--config=etc/odoo.conf \
+    ODOO_STAGE=start
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 
 # Set up user
