@@ -241,6 +241,19 @@ def shell(args, flags, conf):
     docker_compose(["exec", "--user", "odoo:odoo", f"{prefix}{version}", "bash"])
 
 
+def debug(args, flags, conf):
+    """
+    Attaches to an Odoo process in the specified container.
+    """
+    if len(args) != 3:
+        raise InvalidArguments()
+    check_odoo_exist(args[2], flags, conf)
+    profile = flags.get("profile", "default")
+    version = args[2]
+    prefix = conf.get(profile, "prefix")
+    docker_compose(["exec", "--user", "odoo:odoo", f"{prefix}{version}", "screen", "-xS", "odoo"])
+
+
 def top(args, flags, conf):
     """
     Displays the top processes running in the container.
@@ -656,6 +669,7 @@ def build_functions():
     functions["scaffold"] = scaffold, ["version", "module", "directory"], {}, "Generates an Odoo module skeleton."
     functions["tail"] = tail, ["version"], {"lines=NUM": "Get last NUM lines (default: 10)"}, "Views Odoo log live."
     functions["dtail"] = dtail, ["version"], {"lines=NUM": "Get last NUM lines (default: 10)"}, "Views Odoo docker log live."
+    functions["debug"] = debug, ["version"], {}, "Attaches to an Odoo process in the specified container."
     functions["cleanup"] = cleanup, [], {}, "Removes all dangling images."
     functions["ps"] = ps, [], {}, "Lists all containers."
     functions["psql"] = psql, ["version"], {"update": "Update PostgreSQL client"}, "Launches a psql shell for the specified odoo database."

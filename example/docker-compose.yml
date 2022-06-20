@@ -2,7 +2,17 @@ version: "3"
 
 services:
   odoo:
-    image: registry.gitlab.com/mplus-software/odoo:15.0
+    build:
+      context: ../
+      dockerfile: Dockerfile
+      args:
+        - ARCH=amd64
+        - ODOO_VER=15.0
+        - PYTHON_VER=3.7
+        - NODEJS_VER=16
+        - S6_VER=v2.2.0.3
+        - WKHTMLTOPDF_VER=0.12.6-1
+        - PSQL_VER=14
     depends_on:
       - postgres
     ports:

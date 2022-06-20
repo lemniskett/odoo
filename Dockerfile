@@ -29,6 +29,8 @@ RUN set -ex; \
         git \
         file \
         curl \
+        screen \
+        util-linux \
         vim \
         htop \
         libxslt-dev \

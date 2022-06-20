@@ -2,9 +2,6 @@
 
 cd /opt/odoo || exit 1
 
-# Workaround of https://github.com/just-containers/s6-overlay/issues/374
-export HOME=/opt/odoo
-
 if [ ! -z "$ODOO_DRY_RUN" ]; then
     secs=0
     while true; do
@@ -17,8 +14,8 @@ fi
 if [ ! -z "$(find /opt/odoo/pre-start.d -mindepth 1 -maxdepth 1 -type f -print -quit)" ]; then
     for f in /opt/odoo/pre-start.d/*; do
         echo "Running pre-start hook: $f"
-        "$f"
+        runuser -u odoo -- "$f"
     done
 fi
 
-exec s6-setuidgid odoo python server/odoo-bin ${OARGS}
+exec runuser -u odoo -- screen -S odoo -m python server/odoo-bin ${OARGS}
