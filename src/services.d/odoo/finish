@@ -1,5 +1,12 @@
 #!/bin/sh
 
+if [ ! -z "$(find /opt/odoo/post-stop.d -mindepth 1 -maxdepth 1 -type f -print -quit)" ]; then
+    for f in /opt/odoo/post-stop.d/*; do
+        echo "Running post-stop hook: $f"
+        "$f"
+    done
+fi
+
 if [ ! -z "$ONESHOT" ]; then
     exec s6-svscanctl -t /var/run/s6/services
 fi

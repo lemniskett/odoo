@@ -57,7 +57,7 @@ ENV PYTHONPATH /opt/odoo/site-packages
 RUN set -ex; \
     curl -L https://github.com/odoo/odoo/archive/${ODOO_VER}.tar.gz \
         -o /tmp/odoo.src.tar.gz; \
-    mkdir -p /opt/odoo/server /opt/odoo/logs /opt/odoo/data /opt/odoo/etc /opt/odoo/pip-cache /opt/odoo/extra-addons /opt/odoo/site-packages; \
+    mkdir -p /opt/odoo/server /opt/odoo/logs /opt/odoo/data /opt/odoo/etc /opt/odoo/pip-cache /opt/odoo/extra-addons /opt/odoo/site-packages /opt/odoo/pre-start.d /opt/odoo/post-stop.d; \
     cd /opt/odoo; \
     tar xf /tmp/odoo.src.tar.gz --strip-components=1 -C /opt/odoo/server; \
     rm -f /tmp/odoo.src.tar.gz; \
