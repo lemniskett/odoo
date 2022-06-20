@@ -18,7 +18,4 @@ if [ ! -z "$(find /opt/odoo/pre-start.d -mindepth 1 -maxdepth 1 -type f -print -
     done
 fi
 
-# Workaround of https://github.com/just-containers/s6-overlay/issues/374
-export HOME=/opt/odoo
-
-exec s6-setuidgid odoo python server/odoo-bin ${OARGS}
+exec runuser -u odoo -- screen -DmS odoo python server/odoo-bin ${OARGS}
