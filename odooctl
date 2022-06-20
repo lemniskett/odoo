@@ -241,7 +241,7 @@ def shell(args, flags, conf):
     docker_compose(["exec", "--user", "odoo:odoo", f"{prefix}{version}", "bash"])
 
 
-def debug(args, flags, conf):
+def attach(args, flags, conf):
     """
     Attaches to an Odoo process in the specified container.
     """
@@ -251,8 +251,19 @@ def debug(args, flags, conf):
     profile = flags.get("profile", "default")
     version = args[2]
     prefix = conf.get(profile, "prefix")
-    docker_compose(["exec", "--user", "odoo:odoo", f"{prefix}{version}", "screen", "-xS", "odoo"])
 
+    if not flags.get("no-prompt", False):
+        container_name = gen_container_name(args, flags, conf)
+        res = json_loads(docker(["inspect", container_name], capture=True))[0]
+        for var in res["Config"]["Env"]:
+            if var.startswith("OPTIONS__LOGFILE"):
+                key, value = var.split("=")
+                if value != "":
+                    write_err("WARNING: Logfile is set to {}. You'll not see any output from odoo.".format(value))
+        print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
+        input("Press enter to continue...")
+    docker_compose(["exec", "--user", "odoo:odoo", f"{prefix}{version}", "screen", "-xS", "odoo"])
+        
 
 def top(args, flags, conf):
     """
@@ -669,7 +680,7 @@ def build_functions():
     functions["scaffold"] = scaffold, ["version", "module", "directory"], {}, "Generates an Odoo module skeleton."
     functions["tail"] = tail, ["version"], {"lines=NUM": "Get last NUM lines (default: 10)"}, "Views Odoo log live."
     functions["dtail"] = dtail, ["version"], {"lines=NUM": "Get last NUM lines (default: 10)"}, "Views Odoo docker log live."
-    functions["debug"] = debug, ["version"], {}, "Attaches to an Odoo process in the specified container."
+    functions["attach"] = attach, ["version"], {"no-prompt": "Skip the screen prompt"}, "Attaches to an Odoo process in the specified container."
     functions["cleanup"] = cleanup, [], {}, "Removes all dangling images."
     functions["ps"] = ps, [], {}, "Lists all containers."
     functions["psql"] = psql, ["version"], {"update": "Update PostgreSQL client"}, "Launches a psql shell for the specified odoo database."
