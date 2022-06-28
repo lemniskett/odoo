@@ -496,6 +496,8 @@ def psql(args, flags, conf):
     network_name = f"{os.path.basename(conf.get(profile, 'directory'))}_default"
     container_name = gen_container_name(args, flags, conf)
     psql_args = parse_args_after_delimiter()
+    pager = "pspg" if flags.get("pspg", False) else "less"
+
     res = json_loads(docker(["inspect", container_name], capture=True))[0]
     for var in res['Config']['Env']:
         key, value = var.split("=", 1)
@@ -507,7 +509,8 @@ def psql(args, flags, conf):
     os.environ['PGPASSWORD'] = os.environ.get('OPTIONS__DB_PASSWORD', 'odoo')
     command = ["run", "--rm", "--entrypoint", "psql", "--interactive", 
         "--workdir", "/mnt", "--volume", f"{os.environ['REAL_PWD']}:/mnt", "--env", "PGHOST",
-        "--env", "PGPORT", "--env", "PGUSER", "--env", "PGPASSWORD", "--network", network_name]
+        "--env", "PGPORT", "--env", "PGUSER", "--env", "PGPASSWORD", "--env", f"PAGER={pager}",
+        "--network", network_name]
     if update_psql:
         command.extend(["--pull", "always"])
     if stdin.isatty():
@@ -683,7 +686,7 @@ def build_functions():
     functions["attach"] = attach, ["version"], {"no-prompt": "Skip the screen prompt"}, "Attaches to an Odoo process in the specified container."
     functions["cleanup"] = cleanup, [], {}, "Removes all dangling images."
     functions["ps"] = ps, [], {}, "Lists all containers."
-    functions["psql"] = psql, ["version"], {"update": "Update PostgreSQL client"}, "Launches a psql shell for the specified odoo database."
+    functions["psql"] = psql, ["version"], {"update": "Update PostgreSQL client", "pspg": "Use pspg pager"}, "Launches a psql shell for the specified odoo database."
     functions["pg_dump"] = pg_dump, ["version"], {"update": "Update PostgreSQL client"}, "Dumps specified odoo database."
     functions["pytest"] = pytest, ["version"], {}, "Runs pytest."
     functions["ehash"] = ehash, ["version"], {}, "Get matching Odoo Enterprise commit hash."
