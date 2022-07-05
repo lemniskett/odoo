@@ -18,4 +18,11 @@ if [ ! -z "$(find /opt/odoo/pre-start.d -mindepth 1 -maxdepth 1 -type f -print -
     done
 fi
 
-exec runuser -u odoo -- screen -DmS odoo python server/odoo-bin ${OARGS}
+if [ -z "$ODOO_DISABLE_TTY" ]; then
+    screen_cmd="screen -DmS odoo"
+else
+    screen_cmd=""
+fi
+
+
+exec runuser -u odoo -- $screen_cmd python server/odoo-bin ${OARGS}
