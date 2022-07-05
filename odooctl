@@ -342,6 +342,7 @@ def update_module(args, flags, conf):
         "--env", "ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=update",
+        "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"OARGS=--database={args[3]} --update={args[4]} --stop-after-init {test_enable_flag} --config /opt/odoo/etc/odoo.conf"
     ]
 
@@ -392,6 +393,7 @@ def init_module(args, flags, conf):
         "--env", "ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=init",
+        "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"OARGS=--database={args[3]} --init={args[4]} --stop-after-init {test_enable_flag} --config /opt/odoo/etc/odoo.conf"
     ]
 
