@@ -102,12 +102,6 @@ ENV \
     ODOO_STAGE=start
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 
-# Set up user
-RUN set -ex; \
-    groupadd -g $OGID odoo; \
-    useradd -u $OUID -g $OGID -r -M -d /opt/odoo odoo; \
-    chown -R odoo:odoo /opt/odoo /usr/local
-
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
 EXPOSE 8069 8071 8072
 

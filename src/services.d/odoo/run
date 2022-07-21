@@ -14,7 +14,7 @@ fi
 if [ ! -z "$(find /opt/odoo/pre-start.d -mindepth 1 -maxdepth 1 -type f -print -quit)" ]; then
     for f in /opt/odoo/pre-start.d/*; do
         echo "Running pre-start hook: $f"
-        runuser -u odoo -- "$f"
+        "$f"
     done
 fi
 
@@ -25,4 +25,4 @@ else
 fi
 
 
-exec runuser -u odoo -- $screen_cmd python server/odoo-bin ${OARGS}
+exec $screen_cmd python server/odoo-bin ${OARGS}
