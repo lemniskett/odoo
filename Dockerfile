@@ -78,7 +78,7 @@ RUN set -ex ; \
     chmod +x /tmp/s6-overlay-installer; \
     /tmp/s6-overlay-installer .; \
     rm -f /tmp/s6-overlay-installer; \
-    mkdir -p /etc/services.d/{odoo,odootail}
+    mkdir -p /etc/services.d/odoo /etc/services.d/odootail
 
 # Copy configurations
 COPY ./src/cont-init.d/* /etc/cont-init.d/
