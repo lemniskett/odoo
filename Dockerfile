@@ -94,8 +94,9 @@ WORKDIR /opt/odoo
 ENV \
     S6_KEEP_ENV=1 \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
-    OUID=2000 \
-    OGID=2000 \
+    ODOOCONF__options__addons_path=server/addons \
+    ODOOCONF__options__data_dir=data \
+    ODOOCONF__options__logfile=logs/odoo${ODOO_VER}.log \
     OARGS=--config=etc/odoo.conf \
     ODOO_STAGE=start
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"

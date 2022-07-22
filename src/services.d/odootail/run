@@ -2,4 +2,4 @@
 
 cd /opt/odoo
 
-tail -f "$(odooconf options logfile)"
+tail -f "$ODOOCONF__options__logfile"
