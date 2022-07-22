@@ -94,9 +94,6 @@ WORKDIR /opt/odoo
 ENV \
     S6_KEEP_ENV=1 \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
-    OPTIONS__ADDONS_PATH=server/addons \
-    OPTIONS__DATA_DIR=data \
-    OPTIONS__LOGFILE=logs/odoo${ODOO_VER}.log \
     OUID=2000 \
     OGID=2000 \
     OARGS=--config=etc/odoo.conf \
@@ -104,7 +101,7 @@ ENV \
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
-EXPOSE 8069 8071 8072
+EXPOSE 8069 8072
 
 # Run S6
 ENTRYPOINT ["/init"]

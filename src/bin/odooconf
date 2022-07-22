@@ -1,0 +1,10 @@
+#!/usr/bin/env python3
+
+from configparser import ConfigParser
+from os import chdir, system
+from sys import argv
+
+chdir("/opt/odoo")
+c = ConfigParser()
+c.read("etc/odoo.conf")
+print(c.get(argv[1], argv[2]))
