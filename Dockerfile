@@ -78,13 +78,14 @@ RUN set -ex ; \
     chmod +x /tmp/s6-overlay-installer; \
     /tmp/s6-overlay-installer .; \
     rm -f /tmp/s6-overlay-installer; \
-    mkdir -p /etc/services.d/odoo
+    mkdir -p /etc/services.d/{odoo,odootail}
 
 # Copy configurations
 COPY ./src/cont-init.d/* /etc/cont-init.d/
 COPY ./src/services.d/odoo/* /etc/services.d/odoo/
+COPY ./src/services.d/odootail/* /etc/services.d/odootail/
 COPY ./src/bin/* /usr/local/bin/
-RUN chmod +x /usr/local/bin/*
+RUN chmod +x /usr/local/bin/* /etc/cont-init.d/* /etc/services.d/odoo/* /etc/services.d/odootail/*
 
 # Set cwd
 WORKDIR /opt/odoo

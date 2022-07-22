@@ -1,0 +1,11 @@
+#!/usr/bin/env python3
+
+from configparser import ConfigParser
+from os import chdir, system
+
+chdir("/opt/odoo")
+c = ConfigParser()
+c.read("etc/odoo.conf")
+logfile_path = c.get("options", "logfile")
+
+system(f"tail -f {logfile_path}")
