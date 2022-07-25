@@ -201,7 +201,7 @@ def generate_conf(traefik_conf, odoo_conf):
     """
     Generates the configuration files.
     """
-    network_name = getcwd()[1:].replace("/", "-")
+    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     docker_socket = environ.get('DOCKER_HOST', environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(getuid()) + '/docker.sock')).replace("unix://", "")
     traefik_compose = {
         'version': DOCKER_COMPOSE_VERSION,
@@ -471,7 +471,7 @@ def reconfigure(ctx, conf):
     Reconfigures the stack.
     """
     create_dir(ODOOCTL_DOCKER_DIR)
-    create_network(getcwd()[1:].replace("/", "-"))
+    create_network(ODOOCTL_DIR[1:].replace("/", "-"))
 
     traefik_conf = conf.get('traefik', [{'enable': False}])[0]
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
@@ -530,7 +530,7 @@ def init_module(ctx, conf):
     """
     Initializes odoo modules.
     """
-    network_name = getcwd()[1:].replace("/", "-")
+    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     version = odoo_conf[ctx.odoo_id]['version']
     env = get_odoo_env(ctx.odoo_id, network_name)
@@ -571,7 +571,7 @@ def update_module(ctx, conf):
     """
     Initializes odoo modules.
     """
-    network_name = getcwd()[1:].replace("/", "-")
+    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     version = odoo_conf[ctx.odoo_id]['version']
     env = get_odoo_env(ctx.odoo_id, network_name)
@@ -647,7 +647,7 @@ def attach(ctx, conf):
     """
     Attaches to an Odoo instance.
     """
-    network = getcwd()[1:].replace("/", "-")
+    network = ODOOCTL_DIR[1:].replace("/", "-")
     if not ctx.no_prompt:
         print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
         input("Press enter to continue...")
@@ -675,14 +675,17 @@ def destroy(ctx, conf):
     """
     Deletes the stack.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/traefik')
-    docker(["compose", "down"])
-    for odoo_id in parse_odoo_conf(conf.get('odoo', {})):
-        chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}')
+    try:
+        chdir(f'{ODOOCTL_DOCKER_DIR}/traefik')
         docker(["compose", "down"])
-    chdir(ODOOCTL_DIR)
-    print("Removing network ", end="")
-    docker(["network", "rm", network_name(ctx, conf)])
+        for odoo_id in parse_odoo_conf(conf.get('odoo', {})):
+            chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}')
+            docker(["compose", "down"])
+        chdir(ODOOCTL_DIR)
+        print("Removing network ", end="")
+        docker(["network", "rm", network_name(ctx, conf)])
+    except FileNotFoundError:
+        print("No stack found")
 
 
 @command(description="Backups the database", args=["odoo-id", "db_name"])
@@ -690,7 +693,7 @@ def backup(ctx, conf):
     """
     Backups the database.
     """
-    network_name = getcwd()[1:].replace("/", "-")
+    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     port = odoo_conf[ctx.odoo_id]['xmlrpc_port']
     url = f"http://localhost:{port}/web/database/backup"
@@ -706,7 +709,7 @@ def ehash(ctx, conf):
     Get matching Odoo Enterprise commit hash.
     """
     # Get label com.mplussoftware.enterprise.revision from the container
-    network = getcwd()[1:].replace("/", "-")
+    network = ODOOCTL_DIR[1:].replace("/", "-")
     docker(["inspect", "--format", "{{index .Config.Labels \"com.mplussoftware.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
 
 
@@ -715,7 +718,7 @@ def network_name(ctx, conf):
     """
     Get network name.
     """
-    network_name = getcwd()[1:].replace("/", "-")
+    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     print(network_name)
     return network_name
 
@@ -726,7 +729,7 @@ def psql(ctx, conf):
     Launch psql client.
     """
     psql_args = parse_args_after_delimiter()
-    network = getcwd()[1:].replace("/", "-")
+    network = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_env = get_odoo_env(ctx.odoo_id, network)
     pager = "pspg" if ctx.pspg else "less"
     update_psql = ctx.update
@@ -751,8 +754,11 @@ def main():
     if not (uname().system == "Linux" and system("systemctl --version >/dev/null 2>&1") == 0):
         write_err("This script only supports GNU/Linux OS with systemd")
 
+    if ODOOCTL_DIR[0] != "/":
+        write_err("ODOOCTL_DIR must be absolute path")
+
     args, flags = parse_args(argv)
-    conf = parse_config(flags.get("config", "./Odoofile"))
+    conf = parse_config(f"{ODOOCTL_DIR}/Odoofile")
     try:
         user_command = args[0]
     except IndexError:

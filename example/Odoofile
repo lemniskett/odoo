@@ -1,18 +1,18 @@
 traefik {
   enable = true
-  ssl = {
-    enable = true
-    email = "syahrial@lemniskett.me"
-    provider = "cloudflare"
-    secrets = {
-      cf_dns_api_token = "P2h6yQHA_HCaJFwBwDW1DNo6zf4asfnG88Cl2ILv"
-    } 
-  }
+  // ssl = {
+  //   enable = true
+  //   email = "syahrial@lemniskett.me"
+  //   provider = "cloudflare"
+  //   secrets = {
+  //     cf_dns_api_token = "P2h6yQHA_HCaJFwBwDW1DNo6zf4asfnG88Cl2ILv"
+  //   } 
+  // }
 }
 
 odoo "15" {
   version = "15.0-rootless"
-  hostname = "testing.mitija.com"
+  hostname = "odoo15.localhost"
   xmlrpc_port = 8069
   longpolling_port = 8072
   apt = [
