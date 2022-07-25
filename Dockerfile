@@ -70,7 +70,7 @@ RUN set -ex; \
     rm -rf /opt/odoo/pip-cache/*; \
     if [ ! -z "${LEGACY}" ]; then if [ ! -e /opt/odoo/server/odoo-bin ]; then cd /opt/odoo/server; ln -s ./openerp-server ./odoo-bin; fi; fi; \
     if [ ! -z "${LEGACY}" ]; then cd /opt/odoo/site-packages; ln -s ../server/openerp openerp; else cd /opt/odoo/site-packages; ln -s ../server/odoo odoo; fi; \
-    if [ "$ODOO_VER" = "8.0" ]; then cd /opt/odoo/server; wget https://github.com/odoo/odoo/commit/0baf5f9916a7fde4d0d4fa97c1ee70059ae886fb.patch -o allow_root_user.patch; patch -p1 -i allow_root_user.patch; fi
+    if [ "$ODOO_VER" = "8.0" ]; then cd /opt/odoo/server; wget https://github.com/odoo/odoo/commit/0baf5f9916a7fde4d0d4fa97c1ee70059ae886fb.patch -O allow_root_user.patch; patch -p1 -i allow_root_user.patch; fi
 
 # Install S6
 RUN set -ex ; \
