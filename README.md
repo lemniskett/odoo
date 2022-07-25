@@ -51,6 +51,7 @@ odooctl reconfigure
 > Note 2: For changing `options.addons_path`, add `server/addons`.
 
 Also, there's additional environment variables to configure the container:
+- `APT_INSTALL`: comma-separated list of packages to install.
 - `OARGS`: Additional arguments to pass to odoo, defaults to `--config=/opt/odoo/etc/odoo.conf`.
 - `ODOO_DRY_RUN`: If set to anything, the container will not start odoo, but will initialize all the required things to run odoo in the container.
 - `ODOO_DISABLE_TTY`: If set to anything, will disable screen.

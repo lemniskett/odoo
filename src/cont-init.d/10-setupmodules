@@ -1,5 +1,9 @@
 #!/usr/bin/env bash
 
+if [ ! -z "$APT_INSTALL" ]; then
+    env DEBIAN_FRONTEND=noninteractive apt install -y ${APT_INSTALL//,/ }
+fi
+
 if [ ! -z "$PIP_INSTALL" ]; then
     pip install ${PIP_INSTALL//,/ }
 fi

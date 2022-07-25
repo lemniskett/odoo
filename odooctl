@@ -335,6 +335,7 @@ def generate_conf(traefik_conf, odoo_conf):
             'image': f'{ODOO_IMAGE}:{odoo_conf[odoo_id]["version"]}',
             'volumes': [
                 f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
+                f'{ODOOCTL_DIR}/.apt-cache:/var/cache/apt/archives',
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/data:/opt/odoo/data',
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/extra-addons:/opt/odoo/extra-addons',
                 f'{ODOOCTL_DIR}/logs/odoo-{odoo_id}:/opt/odoo/logs',
