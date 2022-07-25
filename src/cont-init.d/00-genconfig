@@ -8,10 +8,13 @@ odoo_conf_path = "/opt/odoo/etc/odoo.conf"
 config = {}
 
 for e, value in environ.items():
-    if "__" in e:
-        section = e.split("__")[0].lower()
-        key = e.split("__")[1].lower()
-
+    if e.startswith("ODOOCONF__"):
+        try:
+            section = e.split("__")[1]
+            key = e.split("__")[2]
+        except IndexError:
+            print("Invalid environment variable: {}".format(e), file=stderr)
+            continue
         if section not in config:
             config[section] = {}
         config[section][key] = value

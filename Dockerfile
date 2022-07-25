@@ -69,7 +69,8 @@ RUN set -ex; \
     pip install -r /opt/odoo/server/requirements.txt; \
     rm -rf /opt/odoo/pip-cache/*; \
     if [ ! -z "${LEGACY}" ]; then if [ ! -e /opt/odoo/server/odoo-bin ]; then cd /opt/odoo/server; ln -s ./openerp-server ./odoo-bin; fi; fi; \
-    if [ ! -z "${LEGACY}" ]; then cd /opt/odoo/site-packages; ln -s ../server/openerp openerp; else cd /opt/odoo/site-packages; ln -s ../server/odoo odoo; fi
+    if [ ! -z "${LEGACY}" ]; then cd /opt/odoo/site-packages; ln -s ../server/openerp openerp; else cd /opt/odoo/site-packages; ln -s ../server/odoo odoo; fi; \
+    if [ "$ODOO_VER" = "8.0" ]; then cd /opt/odoo/server; wget https://github.com/odoo/odoo/commit/0baf5f9916a7fde4d0d4fa97c1ee70059ae886fb.patch -O allow_root_user.patch; patch -p1 -i allow_root_user.patch; fi
 
 # Install S6
 RUN set -ex ; \
@@ -78,13 +79,14 @@ RUN set -ex ; \
     chmod +x /tmp/s6-overlay-installer; \
     /tmp/s6-overlay-installer .; \
     rm -f /tmp/s6-overlay-installer; \
-    mkdir -p /etc/services.d/odoo
+    mkdir -p /etc/services.d/odoo /etc/services.d/odootail
 
 # Copy configurations
 COPY ./src/cont-init.d/* /etc/cont-init.d/
 COPY ./src/services.d/odoo/* /etc/services.d/odoo/
+COPY ./src/services.d/odootail/* /etc/services.d/odootail/
 COPY ./src/bin/* /usr/local/bin/
-RUN chmod +x /usr/local/bin/*
+RUN chmod +x /usr/local/bin/* /etc/cont-init.d/* /etc/services.d/odoo/* /etc/services.d/odootail/*
 
 # Set cwd
 WORKDIR /opt/odoo
@@ -93,23 +95,15 @@ WORKDIR /opt/odoo
 ENV \
     S6_KEEP_ENV=1 \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
-    OPTIONS__ADDONS_PATH=server/addons \
-    OPTIONS__DATA_DIR=data \
-    OPTIONS__LOGFILE=logs/odoo${ODOO_VER}.log \
-    OUID=2000 \
-    OGID=2000 \
+    ODOOCONF__options__addons_path=server/addons \
+    ODOOCONF__options__data_dir=data \
+    ODOOCONF__options__logfile=logs/odoo${ODOO_VER}.log \
     OARGS=--config=etc/odoo.conf \
     ODOO_STAGE=start
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 
-# Set up user
-RUN set -ex; \
-    groupadd -g $OGID odoo; \
-    useradd -u $OUID -g $OGID -r -M -d /opt/odoo odoo; \
-    chown -R odoo:odoo /opt/odoo /usr/local
-
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
-EXPOSE 8069 8071 8072
+EXPOSE 8069 8072
 
 # Run S6
 ENTRYPOINT ["/init"]

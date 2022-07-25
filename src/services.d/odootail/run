@@ -1,0 +1,5 @@
+#!/usr/bin/env bash
+
+cd /opt/odoo
+
+tail -f "$ODOOCONF__options__logfile"

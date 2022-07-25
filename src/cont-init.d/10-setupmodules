@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+
+if [ ! -z "$PIP_INSTALL" ]; then
+    pip install ${PIP_INSTALL//,/ }
+fi
+
+if [ ! -z "$PIP_INSTALL_FILE" ]; then
+    requirements-install ${PIP_INSTALL_FILE//,/ }
+fi
