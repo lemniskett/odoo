@@ -1,0 +1,29 @@
+traefik {
+  enable = true
+  ssl = {
+    enable = true
+    email = "syahrial@lemniskett.me"
+    provider = "cloudflare"
+    secrets = {
+      cf_dns_api_token = "P2h6yQHA_HCaJFwBwDW1DNo6zf4asfnG88Cl2ILv"
+    } 
+  }
+}
+
+odoo "15" {
+  version = "15.0"
+  hostname = "testing.mitija.com"
+  xmlrpc_port = 8069
+  longpolling_port = 8072
+  config = {
+    options = {
+      admin_passwd = "mitija123"
+      db_host = "postgresql"
+      db_user = "odoo"
+      db_password = "odoo"
+    }
+  }
+  mounts = {
+    "${data}/cache": "/opt/odoo/cache"
+  }
+}
