@@ -154,7 +154,6 @@ def create_context(args, flags, user_command):
 
 
 def docker(args, **kwargs):
-    print(args)
     array_args = []
     for i in range(len(args)):
         array_args.append(f"'{args[i]}'")
