@@ -347,7 +347,7 @@ def generate_conf(traefik_conf, odoo_conf):
                 f'{odoo_conf[odoo_id]["longpolling_port"]}:8069'
             ],
             'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id]),
-            'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id),
+            'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])),
         }
 
         with open(f"{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}/docker-compose.yml", "w") as f:
@@ -418,8 +418,11 @@ def get_odoo_env(odoo_id, network_name):
     return env
 
 
-def generate_odoo_conf(conf, odoo_id):
+def generate_odoo_conf(conf, odoo_id, apt, pip, pip_file):
     odoo_env = {
+        'APT_INSTALL': ' '.join(apt),
+        'PIP_INSTALL': ' '.join(pip),
+        'PIP_INSTALL_FILE': ' '.join(pip_file),
         'ODOOCONF__options__proxy_mode': 'True',
     }
     for section, keys in conf.items():

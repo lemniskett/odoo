@@ -51,14 +51,14 @@ odooctl reconfigure
 > Note 2: For changing `options.addons_path`, add `server/addons`.
 
 Also, there's additional environment variables to configure the container:
-- `APT_INSTALL`: comma-separated list of packages to install.
+- `APT_INSTALL`: Space-separated list of packages to install.
 - `OARGS`: Additional arguments to pass to odoo, defaults to `--config=/opt/odoo/etc/odoo.conf`.
 - `ODOO_DRY_RUN`: If set to anything, the container will not start odoo, but will initialize all the required things to run odoo in the container.
 - `ODOO_DISABLE_TTY`: If set to anything, will disable screen.
 - `ODOO_STAGE`: Marks the state of the service, particularly useful for prestart and poststop hooks, values are `init`, `update`, `start`
 - `ONESHOT`: If set to anything, the container will run only once and will exit after the first start.
-- `PIP_INSTALL`: Comma separated list of additional pip packages to install, mount a volume to `/opt/odoo/pip-cache` to avoid recompiling when restarting.
-- `PIP_INSTALL_FILE`: The same as above but comma separated list of files to install.
+- `PIP_INSTALL`: Space-separated list of additional pip packages to install, mount a volume to `/opt/odoo/pip-cache` to avoid recompiling when restarting.
+- `PIP_INSTALL_FILE`: The same as above but space-separated list of files to install.
 > Note 3: If you're using `PIP_INSTALL` and `PIP_INSTALL_FILE` together, `PIP_INSTALL` will be installed first, and installed modules will be removed from `PIP_INSTALL_FILE`.
 - `PURGE_CACHE`: If set to anything, the container will purge `__pycache__` in `/opt/odoo/extra-addons`
 
