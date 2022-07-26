@@ -425,8 +425,12 @@ def generate_odoo_conf(conf, odoo_id, apt, pip, pip_file):
         'ODOOCONF__options__proxy_mode': 'True',
     }
     for section, keys in conf.items():
-        for key, value in keys.items():
-            odoo_env[f"ODOOCONF__{section}__{key}"] = value
+        try:
+            for key, value in keys.items():
+                odoo_env[f"ODOOCONF__{section}__{key}"] = value
+        except AttributeError:
+            write_err(f"{section} needs to be a dictionary")
+            exit(15)
 
     return odoo_env
 
@@ -688,7 +692,7 @@ def destroy(ctx, conf):
         print("No stack found")
 
 
-@command(description="Backups the database", args=["odoo-id", "db_name"])
+@command(description="Backups the database", args=["odoo-id", "db-name"])
 def backup(ctx, conf):
     """
     Backups the database.
