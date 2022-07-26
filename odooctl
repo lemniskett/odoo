@@ -5,7 +5,7 @@ import hcl2
 import subprocess
 import json
 # import odoorpc
-from os import system, path, mkdir, environ, getcwd, getuid, system, chdir
+from os import system, path, mkdir, environ, getcwd, getuid, system, chdir, getuid
 from platform import uname
 from sys import argv, stderr, stdin
 from hashlib import sha256
@@ -322,7 +322,7 @@ def generate_conf(traefik_conf, odoo_conf):
                     }
                 }
             }
-            for secret in traefik_conf['ssl']['secrets']:
+            for secret in traefik_conf['ssl'].get('secrets', []):
                 traefik_compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
 
 
@@ -757,6 +757,12 @@ def psql(ctx, conf):
 def main():
     if not (uname().system == "Linux" and system("systemctl --version >/dev/null 2>&1") == 0):
         write_err("This script only supports GNU/Linux OS with systemd")
+        exit(127)
+
+    # Check if running as root
+    if getuid() == 0:
+        write_err("This script should not be run as root")
+        exit(127)
 
     if ODOOCTL_DIR[0] != "/":
         write_err("ODOOCTL_DIR must be absolute path")
