@@ -741,7 +741,7 @@ def psql(ctx, conf):
     environ['PGHOST'] = odoo_env.get("ODOOCONF__options__db_host", "postgres")
     environ['PGPORT'] = odoo_env.get("ODOOCONF__options__db_port", "5432")
     environ['PGUSER'] = odoo_env.get("ODOOCONF__options__db_user", "odoo")
-    environ['PGPASSWORD'] = odoo_env.get("ODOOCONF__options__db_passwd", "odoo")
+    environ['PGPASSWORD'] = odoo_env.get("ODOOCONF__options__db_password", "odoo")
     cmd = ["run", "--rm", "--entrypoint", "psql", "--interactive", 
         "--workdir", "/mnt", "--volume", f"{environ['PWD']}:/mnt", "--env", "PGHOST",
         "--env", "PGPORT", "--env", "PGUSER", "--env", "PGPASSWORD", "--env", f"PAGER={pager}",
