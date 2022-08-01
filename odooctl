@@ -4,6 +4,7 @@ import yaml
 import hcl2
 import subprocess
 import json
+import requests
 # import odoorpc
 from os import system, path, mkdir, environ, getcwd, getuid, system, chdir, getuid
 from platform import uname
@@ -181,9 +182,6 @@ def create_network(name):
     """
     Creates the network.
     """
-    # output, code = 
-    # if code == 0:
-    #     return
     try:
         docker(["network", "inspect", name], capture=True)
     except DockerError:
@@ -245,13 +243,32 @@ def generate_conf(traefik_conf, odoo_conf):
         }
     }
 
+    trusted_ips = []
+    proxied_from = traefik_conf.get("proxied_from", [])
+    if proxied_from:
+        trusted_ips.extend(proxied_from)
+
+    proxied_from_cloudflare = traefik_conf.get("proxied_from_cloudflare", False)
+    if proxied_from_cloudflare:
+        try:
+            cf_ipv4 = requests.get("https://www.cloudflare.com/ips-v4").text.split("\n")
+            cf_ipv6 = requests.get("https://www.cloudflare.com/ips-v6").text.split("\n")
+        except Exception as e:
+            write_err(f"Error while getting Cloudflare IPs: {e}")
+            exit(10)
+        trusted_ips.extend(cf_ipv4)
+        trusted_ips.extend(cf_ipv6)
+
     traefik = {
         'providers': {
             'docker': {}
         },
         'entryPoints': {
             'web': {
-                'address': ':80'
+                'address': ':80',
+                'forwardedHeaders': {
+                    'trustedIPs': trusted_ips
+                }
             }
         },
         'accessLog': {
@@ -267,7 +284,7 @@ def generate_conf(traefik_conf, odoo_conf):
     if traefik_conf.get('ssl', {}).get('enable', False):
         domains = []
         entrypoint = 'websecure'
-        ssl_provider = traefik_conf['ssl'].get('provider', 'default')
+        ssl_provider = traefik_conf['ssl'].get('provider', 'http')
 
         for version in odoo_conf:
             domains.append({
@@ -291,6 +308,9 @@ def generate_conf(traefik_conf, odoo_conf):
                     'certResolver': 'default',
                     'domains': domains
                 }
+            },
+            'forwardedHeaders': {
+                'trustedIPs': trusted_ips
             }
         }
 
@@ -712,7 +732,6 @@ def ehash(ctx, conf):
     """
     Get matching Odoo Enterprise commit hash.
     """
-    # Get label com.mplussoftware.enterprise.revision from the container
     network = ODOOCTL_DIR[1:].replace("/", "-")
     docker(["inspect", "--format", "{{index .Config.Labels \"com.mplussoftware.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
 
@@ -757,15 +776,20 @@ def psql(ctx, conf):
 def main():
     if not (uname().system == "Linux" and system("systemctl --version >/dev/null 2>&1") == 0):
         write_err("This script only supports GNU/Linux OS with systemd")
-        exit(127)
+        exit(15)
 
     # Check if running as root
     if getuid() == 0:
         write_err("This script should not be run as root")
-        exit(127)
+        exit(15)
 
     if ODOOCTL_DIR[0] != "/":
         write_err("ODOOCTL_DIR must be absolute path")
+
+    # Check if ".." is in ODOOCTL_DIR
+    if ".." in ODOOCTL_DIR:
+        write_err("ODOOCTL_DIR must not contain '..'")
+        exit(15)
 
     args, flags = parse_args(argv)
     conf = parse_config(f"{ODOOCTL_DIR}/Odoofile")
@@ -799,6 +823,9 @@ def main():
         exit(4)
     except KeyError as e:
         write_err(f"Configuration error: {e} is missing.")
+        exit(2)
+    except FileNotFoundError as e:
+        write_err(f"{e}")
         exit(2)
 
 
