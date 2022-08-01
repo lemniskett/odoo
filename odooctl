@@ -214,7 +214,7 @@ def generate_conf(traefik_conf, odoo_conf):
                 ],
                 'volumes': [
                     f"{docker_socket}:/var/run/docker.sock",
-                    './config:/etc/traefik:ro',
+                    './config:/etc/traefik',
                     f'{ODOOCTL_DIR}/logs/traefik:/logs'
                 ],
                 'environment': {},
