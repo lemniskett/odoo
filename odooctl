@@ -552,6 +552,7 @@ def init_module(ctx, conf):
     """
     Initializes odoo modules.
     """
+    chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     version = odoo_conf[ctx.odoo_id]['version']
@@ -593,6 +594,7 @@ def update_module(ctx, conf):
     """
     Initializes odoo modules.
     """
+    chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     version = odoo_conf[ctx.odoo_id]['version']
@@ -662,6 +664,7 @@ def attach(ctx, conf):
     """
     Attaches to an Odoo instance.
     """
+    chdir(ODOOCTL_DIR)
     if not ctx.no_prompt:
         print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
         input("Press enter to continue...")
@@ -674,6 +677,7 @@ def status(ctx, conf):
     """
     Lists all status of Odoo instances.
     """
+    chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "ps", "-a"])
 
 
@@ -696,6 +700,7 @@ def backup(ctx, conf):
     """
     Backups the database.
     """
+    chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     port = odoo_conf[ctx.odoo_id]['xmlrpc_port']
@@ -711,6 +716,7 @@ def ehash(ctx, conf):
     """
     Get matching Odoo Enterprise commit hash.
     """
+    chdir(ODOOCTL_DIR)
     network = ODOOCTL_DIR[1:].replace("/", "-")
     docker(["inspect", "--format", "{{index .Config.Labels \"com.mplussoftware.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
 
@@ -720,6 +726,7 @@ def network_name(ctx, conf):
     """
     Get network name.
     """
+    chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     print(network_name)
     return network_name
