@@ -489,6 +489,7 @@ def reconfigure(ctx, conf):
     Reconfigures the stack.
     """
     create_dir(ODOOCTL_DIR)
+    chdir(ODOOCTL_DIR)
     create_network(ODOOCTL_DIR[1:].replace("/", "-"))
 
     if ctx.generate and ctx.force:
