@@ -5,7 +5,6 @@ import hcl2
 import subprocess
 import json
 import requests
-# import odoorpc
 from os import system, path, mkdir, environ, getcwd, getuid, system, chdir, getuid
 from platform import uname
 from sys import argv, stderr, stdin
@@ -22,7 +21,6 @@ ODOO_IMAGE = "registry.gitlab.com/mplus-software/odoo"
 PSQL_IMAGE = "quay.io/lemniskett/psql"
 
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
-ODOOCTL_DOCKER_DIR = environ.get("ODOOCTL_DOCKER_DIR", f"{ODOOCTL_DIR}/.odooctl")
 
 XMLRPC_PORT = 8069
 LONGPOLLING_PORT = 8072
@@ -171,7 +169,7 @@ def docker(args, **kwargs):
 
 
 def download_file(url, file_name, **kwargs):
-    cmd = f"curl -X POST -L {url} -o {file_name} -m 3600"
+    cmd = f"curl -X POST -L {url} -o {file_name} -m 3600 --connect-timeout 3600"
     for key, value in kwargs.items():
         cmd += f" --data-urlencode {key}={value}"
     exit_code = system(cmd)
@@ -201,10 +199,11 @@ def generate_conf(traefik_conf, odoo_conf):
     """
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     docker_socket = environ.get('DOCKER_HOST', environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(getuid()) + '/docker.sock')).replace("unix://", "")
-    traefik_compose = {
+    compose = {
         'version': DOCKER_COMPOSE_VERSION,
         'services': {
             'traefik': {
+                'hostname': 'traefik',
                 'container_name': f'{network_name}-traefik',
                 'image': f'{TRAEFIK_IMAGE}:{TRAEFIK_TAG}',
                 'ports': [
@@ -213,8 +212,8 @@ def generate_conf(traefik_conf, odoo_conf):
                     '443:443'
                 ],
                 'volumes': [
-                    f"{docker_socket}:/var/run/docker.sock",
-                    './config:/etc/traefik',
+                    f'{docker_socket}:/var/run/docker.sock',
+                    f'{ODOOCTL_DIR}/.traefik:/etc/traefik',
                     f'{ODOOCTL_DIR}/logs/traefik:/logs'
                 ],
                 'environment': {},
@@ -232,24 +231,14 @@ def generate_conf(traefik_conf, odoo_conf):
         }
     }
 
-    odoo_compose_template = {
-        'version': DOCKER_COMPOSE_VERSION,
-        'services': {},
-        'networks': {
-            'default': {
-                'name': network_name,
-                'external': True
-            }
-        }
-    }
-
     trusted_ips = []
-    proxied_from = traefik_conf.get("proxied_from", [])
-    if proxied_from:
-        trusted_ips.extend(proxied_from)
+    proxy = traefik_conf.get("proxy", {})
+    proxy_from = proxy.get("from", [])
+    if proxy_from:
+        trusted_ips.extend(proxy_from)
 
-    proxied_from_cloudflare = traefik_conf.get("proxied_from_cloudflare", False)
-    if proxied_from_cloudflare:
+    proxy_from_cloudflare = proxy.get("from_cloudflare", False)
+    if proxy_from_cloudflare:
         try:
             cf_ipv4 = requests.get("https://www.cloudflare.com/ips-v4").text.split("\n")
             cf_ipv6 = requests.get("https://www.cloudflare.com/ips-v6").text.split("\n")
@@ -347,9 +336,8 @@ def generate_conf(traefik_conf, odoo_conf):
 
 
     for odoo_id in odoo_conf:
-        odoo_compose = deepcopy(odoo_compose_template)
-        create_dir(f"{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}/config")
-        odoo_compose['services'][f'odoo-{odoo_id}'] = {
+        compose['services'][f'odoo-{odoo_id}'] = {
+            'hostname': f'odoo-{odoo_id}',
             'container_name': f'{network_name}-odoo-{odoo_id}',
             'image': f'{ODOO_IMAGE}:{odoo_conf[odoo_id]["version"]}',
             'volumes': [
@@ -365,31 +353,38 @@ def generate_conf(traefik_conf, odoo_conf):
                 f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
                 f'{odoo_conf[odoo_id]["longpolling_port"]}:8069'
             ],
-            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id]),
+            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], proxy.get('listen_only', False), trusted_ips),
             'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])),
         }
-
-        with open(f"{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}/docker-compose.yml", "w") as f:
-            yaml.dump(odoo_compose, f)
+        compose['services'][f'odoo-{odoo_id}'].update(odoo_conf[odoo_id].get('compose', {}))
 
     if traefik_conf.get('enable', True):
-        create_dir(f"{ODOOCTL_DOCKER_DIR}/traefik/config")
-        with open(f"{ODOOCTL_DOCKER_DIR}/traefik/config/traefik.yml", "w") as f:
+        create_dir(".traefik")
+        with open(".traefik/traefik.yml", "w") as f:
             yaml.dump(traefik, f)
         traefik_hash = sha256(json.dumps(traefik, sort_keys=True).encode('utf-8')).hexdigest()
-        traefik_compose['services']['traefik']['labels']['config.hash'] = traefik_hash
-        with open(f"{ODOOCTL_DOCKER_DIR}/traefik/docker-compose.yml", "w") as f:
-            yaml.dump(traefik_compose, f)
+        compose['services']['traefik']['labels']['config.hash'] = traefik_hash
+
+    with open(".docker-compose.yml", "w") as f:
+        yaml.dump(compose, f)
 
 
 def odoo_custom_mount(mounts, odoo_id):
     custom_mounts = []
     for mount in mounts:
-        custom_mounts.append(f"{mount}:{mounts[mount]}".replace('${data}', f'{ODOOCTL_DIR}/odoo-{odoo_id}'))
+        custom_mounts.append(f"{mount}:{mounts[mount]}"
+            .replace('${data}', f'${ODOOCTL_DIR}/odoo-{odoo_id}')
+            .replace('./', f'{ODOOCTL_DIR}/'))
     return custom_mounts
 
 
-def generate_traefik_labels(odoo_id, entrypoint, conf):
+def generate_traefik_labels(odoo_id, entrypoint, conf, listen_only, trusted_ips):
+    client_matcher = ""
+    if listen_only:
+        client_matcher = " && ClientIP("
+        for ip in trusted_ips:
+            client_matcher += f"`{ip}`,"
+        client_matcher = client_matcher[:-1] + ")"
     hostname = conf['hostname']
     sans = conf.get("sans", [])
     odoo_conf_hash = sha256(json.dumps(conf['config'], sort_keys=True).encode('utf-8')).hexdigest()
@@ -397,15 +392,15 @@ def generate_traefik_labels(odoo_id, entrypoint, conf):
     hostname_label_name = f'{hostname.replace(".", "-")}-odoo-{odoo_id}'
     if "*" in hostname:
         matcher = "HostRegexp"
-        hostname = hostname.replace("*", "{subdomain:[a-zA-Z0-9]+}")
+        hostname = hostname.replace("*", "{subdomain:[a-zA-Z0-9_-]+}")
     labels = {
         'config.hash': odoo_conf_hash,
         'traefik.enable': 'true',
-        f'traefik.http.routers.{hostname_label_name}.rule': f'{hostname_matcher}(`{hostname}`)',
+        f'traefik.http.routers.{hostname_label_name}.rule': f'{hostname_matcher}(`{hostname}`){client_matcher}',
         f'traefik.http.routers.{hostname_label_name}.entrypoints': entrypoint,
         f'traefik.http.routers.{hostname_label_name}.service': hostname_label_name,
         f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port': XMLRPC_PORT,
-        f'traefik.http.routers.{hostname_label_name}-rt.rule': f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)',
+        f'traefik.http.routers.{hostname_label_name}-rt.rule': f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`){client_matcher}',
         f'traefik.http.routers.{hostname_label_name}-rt.entrypoints': entrypoint,
         f'traefik.http.routers.{hostname_label_name}-rt.service': f'{hostname_label_name}-rt',
         f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
@@ -415,13 +410,13 @@ def generate_traefik_labels(odoo_id, entrypoint, conf):
         san_label_name = f'{san.replace(".", "-")}-odoo-{odoo_id}'
         if "*" in san:
             san_matcher = "HostRegexp"
-            san = san.replace("*", "{subdomain:[a-z0-9]+}")
+            san = san.replace("*", "{subdomain:[a-z0-9_-]+}")
         san_labels = {
-            f'traefik.http.routers.{san_label_name}.rule': f'{san_matcher}(`{san}`)',
+            f'traefik.http.routers.{san_label_name}.rule': f'{san_matcher}(`{san}`){client_matcher}',
             f'traefik.http.routers.{san_label_name}.entrypoints': entrypoint,
             f'traefik.http.routers.{san_label_name}.service': san_label_name,
             f'traefik.http.services.{san_label_name}.loadbalancer.server.port': XMLRPC_PORT,
-            f'traefik.http.routers.{san_label_name}-rt.rule': f'{san_matcher}(`{san}`) && PathPrefix(`/longpolling`)',
+            f'traefik.http.routers.{san_label_name}-rt.rule': f'{san_matcher}(`{san}`) && PathPrefix(`/longpolling`){client_matcher}',
             f'traefik.http.routers.{san_label_name}-rt.entrypoints': entrypoint,
             f'traefik.http.routers.{san_label_name}-rt.service': f'{san_label_name}-rt',
             f'traefik.http.services.{san_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
@@ -489,27 +484,31 @@ Commands:
     print(help_string, file=stderr)
 
 
-@command(description="Reconfigures the stack")
+@command(description="Reconfigures the stack", flags={'generate': 'Only generate configs', 'force': 'Force recreation of stack'})
 def reconfigure(ctx, conf):
     """
     Reconfigures the stack.
     """
-    create_dir(ODOOCTL_DOCKER_DIR)
+    create_dir(ODOOCTL_DIR)
     create_network(ODOOCTL_DIR[1:].replace("/", "-"))
+
+    if ctx.generate and ctx.force:
+        write_err("--generate and --force don't work well together :(")
+        exit(15)
 
     traefik_conf = conf.get('traefik', [{'enable': False}])[0]
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     generate_conf(traefik_conf, odoo_conf)
 
-    chdir(f'{ODOOCTL_DOCKER_DIR}/traefik')
-    if traefik_conf.get('enable', True):
-        docker(["compose", "up", "-d"])
-    else:
-        docker(["compose", "down"])
+    if ctx.generate:
+        return
 
-    for odoo_id in odoo_conf:
-        chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}')    
-        docker(["compose", "up", "-d"])
+    if ctx.force:
+        cmd = ["compose", "-f", ".docker-compose.yml", "up", "-d", "--remove-orphans", "--force-recreate"]
+    else:
+        cmd = ["compose", "-f", ".docker-compose.yml", "up", "-d", "--remove-orphans"]
+
+    docker(cmd)
 
 
 @command(description="Starts an Odoo instance", args=["odoo-id"])
@@ -517,8 +516,8 @@ def start(ctx, conf):
     """
     Starts an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "up", "-d"])    
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "start", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Stops an Odoo instance", args=["odoo-id"])
@@ -526,8 +525,8 @@ def stop(ctx, conf):
     """
     Stops an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "down"])
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "stop", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Restarts an Odoo instance", args=["odoo-id"])
@@ -535,8 +534,8 @@ def restart(ctx, conf):
     """
     Restarts an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "restart"])
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "restart", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Updates an Odoo instance", args=["odoo-id"])
@@ -544,9 +543,9 @@ def update(ctx, conf):
     """
     Updates an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "pull"])
-    docker(["compose", "up", "-d"])
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "pull", f"odoo-{ctx.odoo_id}"])
+    docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"])
@@ -636,8 +635,8 @@ def shell(ctx, conf):
     """
     Opens a shell in an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "exec", f"odoo-{ctx.odoo_id}", "bash"])
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "bash"])
 
 
 @command(description="Displays processes running in an Odoo instance", args=["odoo-id"])
@@ -645,8 +644,8 @@ def top(ctx, conf):
     """
     Displays processes running in an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
-    docker(["compose", "top", f"odoo-{ctx.odoo_id}"])
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "top", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Views the logs of an Odoo instance", args=["odoo-id"], flags={"lines": "Get last NUM lines (default: 10)"})
@@ -654,16 +653,9 @@ def tail(ctx, conf):
     """
     Views the logs of an Odoo instance.
     """
-    chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{ctx.odoo_id}')
+    chdir(ODOOCTL_DIR)
     lines = "10" if not ctx.lines else ctx.lines
-    docker(["compose", "logs", "--no-log-prefix", "--follow", "--tail", lines, f"odoo-{ctx.odoo_id}"])
-
-
-# @command(description="List all databases", args=["odoo-id"])
-# def list_db(ctx, conf):
-#     port = odoo_conf[ctx.odoo_id]['xmlrpc_port']
-#     odoo = odoorpc.ODOO('localhost', port=port)
-#     print(odoo.db.list())
+    docker(["compose", "-f", ".docker-compose.yml", "logs", "--no-log-prefix", "--follow", "--tail", lines, f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Attaches to an Odoo process", args=["odoo-id"], flags={'no-prompt': 'Skip the screen prompt'})
@@ -671,12 +663,11 @@ def attach(ctx, conf):
     """
     Attaches to an Odoo instance.
     """
-    network = ODOOCTL_DIR[1:].replace("/", "-")
     if not ctx.no_prompt:
         print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
         input("Press enter to continue...")
     
-    docker(["exec", "-it", f"{network}-odoo-{ctx.odoo_id}", "screen", "-xS", "odoo"])
+    docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "screen", "-xS", "odoo"])
 
 
 @command(description="List all status of Odoo instances")
@@ -684,14 +675,7 @@ def status(ctx, conf):
     """
     Lists all status of Odoo instances.
     """
-    odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    chdir(f'{ODOOCTL_DOCKER_DIR}/traefik')
-    docker(["compose", "ps", "-a"])
-    print()
-    for odoo_id in odoo_conf:
-        chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}')
-        docker(["compose", "ps", "-a"])
-        print()
+    docker(["compose", "-f", ".docker-compose.yml", "ps", "-a"])
 
 
 @command(description="Deletes the stack")
@@ -700,12 +684,8 @@ def destroy(ctx, conf):
     Deletes the stack.
     """
     try:
-        chdir(f'{ODOOCTL_DOCKER_DIR}/traefik')
-        docker(["compose", "down"])
-        for odoo_id in parse_odoo_conf(conf.get('odoo', {})):
-            chdir(f'{ODOOCTL_DOCKER_DIR}/odoo-{odoo_id}')
-            docker(["compose", "down"])
         chdir(ODOOCTL_DIR)
+        docker(["compose", "-f", ".docker-compose.yml", "down"])
         print("Removing network ", end="")
         docker(["network", "rm", network_name(ctx, conf)])
     except FileNotFoundError:
