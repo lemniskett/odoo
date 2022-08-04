@@ -373,7 +373,6 @@ def odoo_custom_mount(mounts, odoo_id):
     custom_mounts = []
     for mount in mounts:
         custom_mounts.append(f"{mount}:{mounts[mount]}"
-            .replace('${data}', f'${ODOOCTL_DIR}/odoo-{odoo_id}')
             .replace('./', f'{ODOOCTL_DIR}/'))
     return custom_mounts
 
