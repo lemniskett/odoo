@@ -1,0 +1,48 @@
+# Full config reference
+
+traefik {
+  enable = true
+  port = 8080
+  ssl = {
+    enable = true
+    email = "syahrial@mplus.software"
+    provider = "http"
+    secrets = {
+      cloudflare_dns_api_token = "IFpdJyfb7Q1QkZ6blDi7dRnK96M9ujnS"
+    }
+  }
+  proxy = {
+    from = [
+      "10.0.2.2/32",
+      "127.0.0.0/8",
+      "192.168.18.0/24"
+    ]
+    from_cloudflare = true
+    listen_only = true
+  }
+}
+
+odoo "15" {
+  version = "15.0-rootless"
+  hostname = "localhost"
+  xmlrpc_port = 8069
+  longpolling_port = 8072
+  config = {
+    options = {
+      workers = 2
+      max_cron_threads = 1
+      admin_passwd = "passwd"
+      db_host = "postgresql"
+      db_user = "odoo15dev"
+      list_db = true
+      db_password = "pgpasswd"
+      addons_path = "server/addons"
+    }
+  }
+  mounts = {
+    "./cache" = "/var/cache"
+  }
+  compose = {
+    mem_limit = "512M"
+  }
+}
