@@ -270,17 +270,12 @@ def generate_conf(traefik_conf, odoo_conf):
     }
 
     entrypoint = 'web'
-    if traefik_conf.get('ssl', {}).get('enable', False):
+    ssl = traefik_conf.get('ssl', {}).get('enable', False)
+    if ssl:
         domains = []
         entrypoint = 'websecure'
         ssl_provider = traefik_conf['ssl'].get('provider', 'http')
 
-        for version in odoo_conf:
-            domains.append({
-                'main': odoo_conf[version]['hostname'],
-                'sans': odoo_conf[version].get("sans", [])
-            })
-        
         traefik['entryPoints']['web']['http'] = {
             'redirections': {
                 'entryPoint': {
@@ -295,7 +290,6 @@ def generate_conf(traefik_conf, odoo_conf):
             'http': {
                 'tls': {
                     'certResolver': 'default',
-                    'domains': domains
                 }
             },
             'forwardedHeaders': {
@@ -310,7 +304,7 @@ def generate_conf(traefik_conf, odoo_conf):
                         'email': traefik_conf['ssl']['email'],
                         'storage': '/etc/traefik/acme.json',
                         'httpChallenge': {
-                            'entryPoint': 'web'
+                            'entryPoint': 'websecure' # Because HTTP is redirected to HTTPS
                         }
                     }
                 }
@@ -332,7 +326,7 @@ def generate_conf(traefik_conf, odoo_conf):
                 }
             }
             for secret in traefik_conf['ssl'].get('secrets', []):
-                traefik_compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
+                compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
 
 
     for odoo_id in odoo_conf:
@@ -353,7 +347,7 @@ def generate_conf(traefik_conf, odoo_conf):
                 f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
                 f'{odoo_conf[odoo_id]["longpolling_port"]}:8069'
             ],
-            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], proxy.get('listen_only', False), trusted_ips),
+            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], proxy.get('listen_only', False), trusted_ips, ssl),
             'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])),
         }
         compose['services'][f'odoo-{odoo_id}'].update(odoo_conf[odoo_id].get('compose', {}))
@@ -377,50 +371,41 @@ def odoo_custom_mount(mounts, odoo_id):
     return custom_mounts
 
 
-def generate_traefik_labels(odoo_id, entrypoint, conf, listen_only, trusted_ips):
+def generate_traefik_labels(odoo_id, entrypoint, conf, listen_only, trusted_ips, ssl):
     client_matcher = ""
     if listen_only:
         client_matcher = " && ClientIP("
         for ip in trusted_ips:
             client_matcher += f"`{ip}`,"
         client_matcher = client_matcher[:-1] + ")"
-    hostname = conf['hostname']
-    sans = conf.get("sans", [])
+    hostnames = conf['hostnames']
     odoo_conf_hash = sha256(json.dumps(conf['config'], sort_keys=True).encode('utf-8')).hexdigest()
-    hostname_matcher = "Host"
-    hostname_label_name = f'{hostname.replace(".", "-")}-odoo-{odoo_id}'
-    if "*" in hostname:
-        matcher = "HostRegexp"
-        hostname = hostname.replace("*", "{subdomain:[a-zA-Z0-9_-]+}")
     labels = {
         'config.hash': odoo_conf_hash,
         'traefik.enable': 'true',
-        f'traefik.http.routers.{hostname_label_name}.rule': f'{hostname_matcher}(`{hostname}`){client_matcher}',
-        f'traefik.http.routers.{hostname_label_name}.entrypoints': entrypoint,
-        f'traefik.http.routers.{hostname_label_name}.service': hostname_label_name,
-        f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port': XMLRPC_PORT,
-        f'traefik.http.routers.{hostname_label_name}-rt.rule': f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`){client_matcher}',
-        f'traefik.http.routers.{hostname_label_name}-rt.entrypoints': entrypoint,
-        f'traefik.http.routers.{hostname_label_name}-rt.service': f'{hostname_label_name}-rt',
-        f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
     }
-    for san in sans:
-        san_matcher = "Host"
-        san_label_name = f'{san.replace(".", "-")}-odoo-{odoo_id}'
-        if "*" in san:
-            san_matcher = "HostRegexp"
-            san = san.replace("*", "{subdomain:[a-z0-9_-]+}")
-        san_labels = {
-            f'traefik.http.routers.{san_label_name}.rule': f'{san_matcher}(`{san}`){client_matcher}',
-            f'traefik.http.routers.{san_label_name}.entrypoints': entrypoint,
-            f'traefik.http.routers.{san_label_name}.service': san_label_name,
-            f'traefik.http.services.{san_label_name}.loadbalancer.server.port': XMLRPC_PORT,
-            f'traefik.http.routers.{san_label_name}-rt.rule': f'{san_matcher}(`{san}`) && PathPrefix(`/longpolling`){client_matcher}',
-            f'traefik.http.routers.{san_label_name}-rt.entrypoints': entrypoint,
-            f'traefik.http.routers.{san_label_name}-rt.service': f'{san_label_name}-rt',
-            f'traefik.http.services.{san_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
+    for hostname in hostnames:
+        hostname_matcher = "Host"
+        hostname_label_name = f'{hostname.replace(".", "-")}-odoo-{odoo_id}'
+        if "*" in hostname:
+            hostname_matcher = "HostRegexp"
+            hostname = hostname.replace("*", "{subdomain:[a-z0-9_-]+}")
+        hostname_labels = {
+            f'traefik.http.routers.{hostname_label_name}.rule': f'{hostname_matcher}(`{hostname}`){client_matcher}',
+            f'traefik.http.routers.{hostname_label_name}.entrypoints': entrypoint,
+            f'traefik.http.routers.{hostname_label_name}.service': hostname_label_name,
+            f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port': XMLRPC_PORT,
+            f'traefik.http.routers.{hostname_label_name}-rt.rule': f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`){client_matcher}',
+            f'traefik.http.routers.{hostname_label_name}-rt.entrypoints': entrypoint,
+            f'traefik.http.routers.{hostname_label_name}-rt.service': f'{hostname_label_name}-rt',
+            f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
         }
-        labels.update(san_labels)
+        if ssl:
+            hostname_labels[f'traefik.http.routers.{hostname_label_name}.tls.certresolver'] = 'default'
+            hostname_labels[f'traefik.http.routers.{hostname_label_name}.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
+            hostname_labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.certresolver'] = 'default'
+            hostname_labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
+        labels.update(hostname_labels)
 
     return labels
 
