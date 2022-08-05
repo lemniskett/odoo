@@ -51,7 +51,7 @@ RUN set -ex; \
     apt update; \
     apt install -y --no-install-recommends \
         nodejs; \
-    npm install -g rtlcss less
+    npm install -g rtlcss less@3.0.4
 
 # Install Odoo
 ENV PIP_CACHE_DIR /opt/odoo/pip-cache
