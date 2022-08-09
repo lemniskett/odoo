@@ -347,7 +347,7 @@ def generate_conf(traefik_conf, odoo_conf):
                 f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
                 f'{odoo_conf[odoo_id]["longpolling_port"]}:8069'
             ],
-            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], proxy.get('listen_only', False), trusted_ips, ssl),
+            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl),
             'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])),
         }
         compose['services'][f'odoo-{odoo_id}'].update(odoo_conf[odoo_id].get('compose', {}))
@@ -371,41 +371,47 @@ def odoo_custom_mount(mounts, odoo_id):
     return custom_mounts
 
 
-def generate_traefik_labels(odoo_id, entrypoint, conf, listen_only, trusted_ips, ssl):
-    client_matcher = ""
-    if listen_only:
-        client_matcher = " && ClientIP("
-        for ip in trusted_ips:
-            client_matcher += f"`{ip}`,"
-        client_matcher = client_matcher[:-1] + ")"
+def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
     hostnames = conf['hostnames']
     odoo_conf_hash = sha256(json.dumps(conf['config'], sort_keys=True).encode('utf-8')).hexdigest()
     labels = {
         'config.hash': odoo_conf_hash,
         'traefik.enable': 'true',
     }
-    for hostname in hostnames:
+    for hostname_conf in hostnames:
+        hostname_conf = hostname_conf.split(',')
+        hostname_args = {kv.split('=')[0]: kv.split('=')[1] for kv in hostname_conf[1:]}
+
+        hostname = hostname_conf[0]
         hostname_matcher = "Host"
         hostname_label_name = f'{hostname.replace(".", "-")}-odoo-{odoo_id}'
         if "*" in hostname:
             hostname_matcher = "HostRegexp"
             hostname = hostname.replace("*", "{subdomain:[a-z0-9_-]+}")
-        hostname_labels = {
-            f'traefik.http.routers.{hostname_label_name}.rule': f'{hostname_matcher}(`{hostname}`){client_matcher}',
-            f'traefik.http.routers.{hostname_label_name}.entrypoints': entrypoint,
-            f'traefik.http.routers.{hostname_label_name}.service': hostname_label_name,
-            f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port': XMLRPC_PORT,
-            f'traefik.http.routers.{hostname_label_name}-rt.rule': f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`){client_matcher}',
-            f'traefik.http.routers.{hostname_label_name}-rt.entrypoints': entrypoint,
-            f'traefik.http.routers.{hostname_label_name}-rt.service': f'{hostname_label_name}-rt',
-            f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port': LONGPOLLING_PORT
-        }
+        labels[f'traefik.http.routers.{hostname_label_name}.rule'] = f'{hostname_matcher}(`{hostname}`)'
+        labels[f'traefik.http.routers.{hostname_label_name}.entrypoints'] = entrypoint
+        labels[f'traefik.http.routers.{hostname_label_name}.service'] = hostname_label_name
+        labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = ''
+        labels[f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port'] = XMLRPC_PORT
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)'
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.entrypoints'] = entrypoint
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.service'] = f'{hostname_label_name}-rt'
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = ''
+        labels[f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port'] = LONGPOLLING_PORT
+        
         if ssl:
-            hostname_labels[f'traefik.http.routers.{hostname_label_name}.tls.certresolver'] = 'default'
-            hostname_labels[f'traefik.http.routers.{hostname_label_name}.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
-            hostname_labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.certresolver'] = 'default'
-            hostname_labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
-        labels.update(hostname_labels)
+            labels[f'traefik.http.routers.{hostname_label_name}.tls.certresolver'] = 'default'
+            labels[f'traefik.http.routers.{hostname_label_name}.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
+            labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.certresolver'] = 'default'
+            labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
+
+        if 'dbfilter' in hostname_args:
+            labels[f'traefik.http.middlewares.{hostname_label_name}-dbfilter.headers.customrequestheaders.X-Odoo-dbfilter'] = hostname_args['dbfilter']
+            labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] += f'{hostname_label_name}-dbfilter,'
+            labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] += f'{hostname_label_name}-dbfilter,'
+
+        labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}.middlewares'][:-1]
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'][:-1]
 
     return labels
 
@@ -563,6 +569,7 @@ def init_module(ctx, conf):
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
         "--env", "ODOOCONF__options__logfile",
+        "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
         "--env", "ONESHOT=True",
@@ -605,6 +612,7 @@ def update_module(ctx, conf):
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
         "--env", "ODOOCONF__options__logfile",
+        "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
         "--env", "ONESHOT=True",
@@ -718,7 +726,7 @@ def network_name(ctx, conf):
     return network_name
 
 
-@command(description="Launch psql client", args=["odoo-id"], flags={"pspg": "Use pspg pager", "update": "Updates the psql"})
+@command(description="Launch psql client", args=["odoo-id"], flags={"client":"PostgreSQL client to use. psql, pg_dump, etc.", "pspg": "Use pspg pager", "update": "Updates the psql"})
 def psql(ctx, conf):
     """
     Launch psql client.
@@ -728,12 +736,13 @@ def psql(ctx, conf):
     odoo_env = get_odoo_env(ctx.odoo_id, network)
     pager = "pspg" if ctx.pspg else "less"
     update_psql = ctx.update
+    client = ctx.client if ctx.client else "psql"
 
     environ['PGHOST'] = odoo_env.get("ODOOCONF__options__db_host", "postgres")
     environ['PGPORT'] = odoo_env.get("ODOOCONF__options__db_port", "5432")
     environ['PGUSER'] = odoo_env.get("ODOOCONF__options__db_user", "odoo")
     environ['PGPASSWORD'] = odoo_env.get("ODOOCONF__options__db_password", "odoo")
-    cmd = ["run", "--rm", "--entrypoint", "psql", "--interactive", 
+    cmd = ["run", "--rm", "--entrypoint", client, "--interactive", 
         "--workdir", "/mnt", "--volume", f"{environ['PWD']}:/mnt", "--env", "PGHOST",
         "--env", "PGPORT", "--env", "PGUSER", "--env", "PGPASSWORD", "--env", f"PAGER={pager}",
         "--network", network]

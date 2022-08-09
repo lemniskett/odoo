@@ -17,14 +17,13 @@ traefik {
       "127.0.0.0/8",
       "192.168.18.0/24"
     ]
-    from_cloudflare = true
-    listen_only = true
+    from_cloudflare = false
   }
 }
 
 odoo "15" {
   version = "15.0-rootless"
-  hostname = "localhost"
+  hostnames = ["localhost", "example.localhost"]
   xmlrpc_port = 8069
   longpolling_port = 8072
   config = {
