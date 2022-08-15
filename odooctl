@@ -539,7 +539,7 @@ def update(ctx, conf):
     docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
 
 
-@command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"])
+@command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after installing modules'})
 def init_module(ctx, conf):
     """
     Initializes odoo modules.
@@ -580,9 +580,11 @@ def init_module(ctx, conf):
         f"{ODOO_IMAGE}:{version}"
     ]
     docker(cmd)
+    if not ctx.no_restart:
+        docker(["compose", "-f", ".docker-compose.yml", "restart", f"odoo-{ctx.odoo_id}"])
 
 
-@command(description="Updates odoo modules", args=["odoo-id", "db", "modules"])
+@command(description="Updates odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after updating modules'})
 def update_module(ctx, conf):
     """
     Initializes odoo modules.
@@ -623,6 +625,8 @@ def update_module(ctx, conf):
         f"{ODOO_IMAGE}:{version}"
     ]
     docker(cmd)
+    if not ctx.no_restart:
+        docker(["compose", "-f", ".docker-compose.yml", "restart", f"odoo-{ctx.odoo_id}"])
 
 
 @command(description="Opens a shell in an Odoo instance", args=["odoo-id"])
