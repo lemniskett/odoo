@@ -13,20 +13,18 @@ from pathlib import Path
 from copy import deepcopy
 from collections import namedtuple
 
-
+DOCKER_HOST = environ.get('DOCKER_HOST', 'unix://' + environ.get('XDG_RUNTIME_DIR' + '/docker.sock' , '/run/user/' + str(getuid()) + '/docker.sock'))
 DOCKER_COMPOSE_VERSION = "2"
 TRAEFIK_IMAGE = "docker.io/library/traefik"
 TRAEFIK_TAG = "2.8"
 ODOO_IMAGE = "registry.gitlab.com/mplus-software/odoo"
 PSQL_IMAGE = "quay.io/lemniskett/psql"
-
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
-
 XMLRPC_PORT = 8069
 LONGPOLLING_PORT = 8072
+VERBOSE = False
 
 commands = {}
-
 
 class InvalidArguments(Exception):
     pass
@@ -48,6 +46,7 @@ def command(**kwargs):
     def wrapper(func):
         default_flags = {
             "help": "Shows help for this command",
+            "verbose": "Prints debug information",
         }
         commands[func.__name__.replace("_", "-")] = {
             "func": func,
@@ -75,6 +74,11 @@ def help_hook(args, flags, user_command):
     help_string += f"\n\nOptional flags:\n{flags_help}"
     print(help_string)
     exit(0)
+
+
+def verbose_hook(flags):
+    global VERBOSE
+    VERBOSE = flags.get("verbose", False)
 
 
 def parse_args(argv):
@@ -157,7 +161,8 @@ def docker(args, **kwargs):
     for i in range(len(args)):
         array_args.append(f"'{args[i]}'")
     cmd = f"docker {' '.join(array_args)}"
-
+    if VERBOSE:
+        print(f'=> {cmd}', file=stderr)
     if kwargs.get("capture", False):
         res = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
         if res.returncode != 0:
@@ -198,7 +203,7 @@ def generate_conf(traefik_conf, odoo_conf):
     Generates the configuration files.
     """
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
-    docker_socket = environ.get('DOCKER_HOST', environ.get('XDG_RUNTIME_DIR', '/run/user/' + str(getuid()) + '/docker.sock')).replace("unix://", "")
+    docker_socket = DOCKER_HOST.replace("unix://", "")
     compose = {
         'version': DOCKER_COMPOSE_VERSION,
         'services': {
@@ -785,8 +790,10 @@ def main():
         exit(1)
 
     help_hook(args, flags, user_command)
+    verbose_hook(flags)
 
-    try: 
+    try:
+        environ["DOCKER_HOST"] = DOCKER_HOST
         ctx = create_context(args, flags, user_command)
     except InvalidFlags as e:
         write_err(f"Invalid flag: --{e}")
@@ -816,3 +823,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
