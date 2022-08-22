@@ -91,11 +91,7 @@ RUN set -ex; \
     cd /opt/odoo; \
     tar xf /tmp/odoo.src.tar.gz --strip-components=1 -C /opt/odoo/server; \
     rm -f /tmp/odoo.src.tar.gz; \
-    pip install --upgrade pip; \
-    pip install wheel setuptools phonenumbers; \
-    if [ ! -z "${LEGACY}" ]; then sed -i 's/psycopg2.*/psycopg2==2.8.6/g' /opt/odoo/server/requirements.txt; fi; \
-    pip install -r /opt/odoo/server/requirements.txt; \
-    rm -rf /opt/odoo/pip-cache/*; \
+    ln -s server s; ln -s extra-addons e; \
     if [ ! -z "${LEGACY}" ]; then if [ ! -e /opt/odoo/server/odoo-bin ]; then cd /opt/odoo/server; ln -s ./openerp-server ./odoo-bin; fi; fi; \
     if [ ! -z "${LEGACY}" ]; then cd /opt/odoo/site-packages; ln -s ../server/openerp openerp; else cd /opt/odoo/site-packages; ln -s ../server/odoo odoo; fi; \
     if [ "$ODOO_VER" = "8.0" ]; then cd /opt/odoo/server; wget https://github.com/odoo/odoo/commit/0baf5f9916a7fde4d0d4fa97c1ee70059ae886fb.patch -O allow_root_user.patch; patch -p1 -i allow_root_user.patch; fi

@@ -10,7 +10,7 @@ pip install python-hcl2 PyYAML
 Example Odoofile with postgresql included is available in `example`
 
 ## Odoo Configuration
-Instead of config file, you can use environment variables to configure the container:
+Instead of config file, you can use `config` scope to configure the container:
 ```hcl
 odoo "15" {
   ...
@@ -48,7 +48,7 @@ odooctl reconfigure
 
 > Note 1: It's discouraged to change the values of `options.data_dir`.
 
-> Note 2: For changing `options.addons_path`, add `server/addons`.
+> Note 2: For changing `options.addons_path`, add `server/addons` (or `s/addons`, if you want a shorter string).
 
 Also, there's additional environment variables to configure the container:
 - `APT_INSTALL`: Space-separated list of packages to install.
@@ -61,16 +61,3 @@ Also, there's additional environment variables to configure the container:
 - `PIP_INSTALL_FILE`: The same as above but space-separated list of files to install.
 > Note 3: If you're using `PIP_INSTALL` and `PIP_INSTALL_FILE` together, `PIP_INSTALL` will be installed first, and installed modules will be removed from `PIP_INSTALL_FILE`.
 - `PURGE_CACHE`: If set to anything, the container will purge `__pycache__` in `/opt/odoo/extra-addons`
-
-## Custom container
-If modules fail to install because of missing build dependencies (e.g. pycups), you may want to build your own container using this container as the base image. (e.g. Odoo 14)
-
-```Dockerfile
-FROM registry.gitlab.com/mplus-software/odoo:14.0
-COPY ./requirements.txt /requirements.txt
-RUN apt install libcups2-dev -y
-USER odoo
-RUN requirements-install /requirements.txt; \
-USER root
-RUN rm /requirements.txt
-```
