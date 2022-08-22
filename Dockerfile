@@ -14,7 +14,7 @@ ARG \
 ENV PYTHONUNBUFFERED=1
 RUN set -ex; \
     curl -L https://raw.githubusercontent.com/odoo/odoo/${ODOO_VER}/requirements.txt -o /tmp/requirements.txt; \
-    if [ ! -z "${LEGACY}" ]; then sed -i 's/psycopg2.*/psycopg2==2.8.6/g' /opt/odoo/server/requirements.txt; fi; \
+    if [ ! -z "${LEGACY}" ]; then sed -i 's/psycopg2.*/psycopg2==2.8.6/g' /tmp/requirements.txt; fi; \
     apt update; \
     apt upgrade -y; \
     apt install --no-install-recommends -y \
