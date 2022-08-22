@@ -1,6 +1,6 @@
-ARG PYTHON_VER
-FROM python:${PYTHON_VER}-buster
 
+ARG PYTHON_VER ODOO_VER LEGACY
+FROM python:${PYTHON_VER}-buster as builder
 ARG \
     ARCH \
     LEGACY \
@@ -11,6 +11,40 @@ ARG \
     PSQL_VER \
     RELEASE_CODENAME=buster \
     DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+RUN set -ex; \
+    curl -L https://raw.githubusercontent.com/odoo/odoo/${ODOO_VER}/requirements.txt -o /tmp/requirements.txt; \
+    if [ ! -z "${LEGACY}" ]; then sed -i 's/psycopg2.*/psycopg2==2.8.6/g' /opt/odoo/server/requirements.txt; fi; \
+    apt update; \
+    apt upgrade -y; \
+    apt install --no-install-recommends -y \
+        git \
+        file \
+        curl \
+        util-linux \
+        libxslt-dev \
+        libzip-dev \
+        libldap2-dev \
+        libsasl2-dev \
+        libpq-dev \
+        libjpeg-dev \
+        gcc \
+        g++ \
+        build-essential;
+RUN pip wheel -r /tmp/requirements.txt  --wheel-dir /usr/src/app/wheels    
+
+FROM python:${PYTHON_VER}-buster as runner
+ARG \
+    ARCH \
+    LEGACY \
+    ODOO_VER \
+    NODEJS_VER \
+    WKHTMLTOPDF_VER \
+    S6_VER \
+    PSQL_VER \
+    RELEASE_CODENAME=buster \
+    DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
 
 # Install PostgreSQL client
 RUN set -ex; \
@@ -20,6 +54,7 @@ RUN set -ex; \
     apt-get install -y postgresql-client-${PSQL_VER}
 
 # Install Odoo Dependencies
+COPY --from=builder /usr/src/app/wheels  /wheels/
 RUN set -ex; \
     curl -L https://github.com/wkhtmltopdf/packaging/releases/download/${WKHTMLTOPDF_VER}/wkhtmltox_${WKHTMLTOPDF_VER}.${RELEASE_CODENAME}_${ARCH}.deb \
         -o /tmp/wkhtmltopdf.deb; \
@@ -32,16 +67,9 @@ RUN set -ex; \
         screen \
         util-linux \
         vim \
-        htop \
-        libxslt-dev \
-        libzip-dev \
-        libldap2-dev \
-        libsasl2-dev \
-        libpq-dev \
-        libjpeg-dev \
-        gcc \
-        g++ \
-        build-essential; \
+        htop; \
+    pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/*; \
+    rm -rf /wheels/; \
     apt install --no-install-recommends -y /tmp/wkhtmltopdf.deb; \
     rm -f /tmp/wkhtmltopdf.deb
 
