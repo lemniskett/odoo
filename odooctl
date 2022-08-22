@@ -564,7 +564,13 @@ def init_module(ctx, conf):
 
     for e in env:
         environ[e] = env[e]
-    cmd = ["run", "--rm", "--interactive", "--tty",
+
+    if stdin.isatty():
+        shell_flags = ["--interactive", "--tty"]
+    else:
+        shell_flags = ["--interactive"]
+
+    cmd = ["run", "--rm", *shell_flags,
         "--network", network_name,
         *bind_mount_commands,
         "--env", "ODOOCONF__options__addons_path",
@@ -609,7 +615,13 @@ def update_module(ctx, conf):
 
     for e in env:
         environ[e] = env[e]
-    cmd = ["run", "--rm", "--interactive", "--tty",
+    
+    if stdin.isatty():
+        shell_flags = ["--interactive", "--tty"]
+    else:
+        shell_flags = ["--interactive"]
+
+    cmd = ["run", "--rm", *shell_flags,
         "--network", network_name,
         *bind_mount_commands,
         "--env", "ODOOCONF__options__addons_path",
