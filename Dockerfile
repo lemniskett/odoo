@@ -129,5 +129,8 @@ LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
 EXPOSE 8069 8072
 
+# Add Healthcheck, port settings must not be changed.
+HEALTHCHECK CMD healthcheck
+
 # Run S6
 ENTRYPOINT ["/init"]
