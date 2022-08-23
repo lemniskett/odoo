@@ -433,6 +433,7 @@ def generate_odoo_conf(conf, odoo_id, apt, pip, pip_file):
         'PIP_INSTALL': ' '.join(pip),
         'PIP_INSTALL_FILE': ' '.join(pip_file),
         'ODOOCONF__options__proxy_mode': 'True',
+        'ODOOCONF__options__logfile': f'logs/odoo-{odoo_id}.log'
     }
     for section, keys in conf.items():
         try:
@@ -486,7 +487,8 @@ def reconfigure(ctx, conf):
     """
     create_dir(ODOOCTL_DIR)
     chdir(ODOOCTL_DIR)
-    create_network(ODOOCTL_DIR[1:].replace("/", "-"))
+    if not ctx.generate:
+        create_network(ODOOCTL_DIR[1:].replace("/", "-"))
 
     if ctx.generate and ctx.force:
         write_err("--generate and --force don't work well together :(")

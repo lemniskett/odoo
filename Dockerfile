@@ -121,7 +121,8 @@ ENV \
     S6_BEHAVIOUR_IF_STAGE2_FAILS=2 \
     ODOOCONF__options__addons_path=server/addons \
     ODOOCONF__options__data_dir=data \
-    ODOOCONF__options__logfile=logs/odoo${ODOO_VER}.log \
+    ODOOCONF__options__logfile=logs/odoo-${ODOO_VER}.log \
+    ODOOCONF__options__list_db=True \
     OARGS=--config=etc/odoo.conf \
     ODOO_STAGE=start
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
@@ -129,8 +130,12 @@ LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
 EXPOSE 8069 8072
 
-# Add Healthcheck, port settings must not be changed.
-HEALTHCHECK CMD healthcheck
+# Add Healthcheck, port settings must not be changed and list db must be enabled.
+HEALTHCHECK CMD curl -H 'Content-Type: text/xml' \
+    -d "<?xml version='1.0'?><methodCall><methodName>list</methodName></methodCall>" \
+    -X POST \
+    --fail \
+    http://localhost:8069/xmlrpc/db
 
 # Run S6
 ENTRYPOINT ["/init"]
