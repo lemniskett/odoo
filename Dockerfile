@@ -131,11 +131,7 @@ LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 EXPOSE 8069 8072
 
 # Add Healthcheck, port settings must not be changed and list db must be enabled.
-HEALTHCHECK CMD curl -H 'Content-Type: text/xml' \
-    -d "<?xml version='1.0'?><methodCall><methodName>list</methodName></methodCall>" \
-    -X POST \
-    --fail \
-    http://localhost:8069/xmlrpc/db
+HEALTHCHECK CMD healthcheck
 
 # Run S6
 ENTRYPOINT ["/init"]
