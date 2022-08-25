@@ -130,8 +130,5 @@ LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
 EXPOSE 8069 8072
 
-# Add Healthcheck, port settings must not be changed and list db must be enabled.
-HEALTHCHECK CMD curl --fail --head localhost:8069/web/static/lib/fontawesome/css/font-awesome.css
-
 # Run S6
 ENTRYPOINT ["/init"]
