@@ -84,7 +84,7 @@ RUN set -ex; \
     cd /opt/odoo; \
     tar xf /tmp/odoo.src.tar.gz --strip-components=1 -C /opt/odoo/server; \
     rm -f /tmp/odoo.src.tar.gz; \
-    ln -s server s; ln -s extra-addons e; \
+    ln -s server s; ln -s extra-addons e;
 
 # Install S6
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_VER}/s6-overlay-noarch.tar.xz /tmp
