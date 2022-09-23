@@ -13,7 +13,7 @@ from pathlib import Path
 from copy import deepcopy
 from collections import namedtuple
 
-DOCKER_HOST = environ.get('DOCKER_HOST', 'unix://' + environ.get('XDG_RUNTIME_DIR' + '/docker.sock' , '/run/user/' + str(getuid()) + '/docker.sock'))
+DOCKER_HOST = environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')
 DOCKER_COMPOSE_VERSION = "2"
 TRAEFIK_IMAGE = "docker.io/library/traefik"
 TRAEFIK_TAG = "2.8"
@@ -152,7 +152,10 @@ def create_context(args, flags, user_command):
             raise InvalidFlags(key)
 
     ctx = {key.replace("-", "_"): value for key, value in ctx.items()}
-    ctx = namedtuple("Context", ctx.keys())(*ctx.values())
+    user_command_pascal_case = user_command.replace("-", "_").title().replace("_", "")
+
+    ctx = namedtuple(f'{user_command_pascal_case}Context', ctx.keys())(*ctx.values())
+
     return ctx
 
 
@@ -345,16 +348,24 @@ def generate_conf(traefik_conf, odoo_conf):
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/data:/opt/odoo/data',
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/extra-addons:/opt/odoo/extra-addons',
                 f'{ODOOCTL_DIR}/logs/odoo-{odoo_id}:/opt/odoo/logs',
-                *odoo_custom_mount(odoo_conf[odoo_id].get('mounts', []), odoo_id)
+                *odoo_custom_mount(odoo_conf[odoo_id].get('volumes', []), odoo_id)
             ],
             'restart': 'unless-stopped',
             'ports': [
                 f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
-                f'{odoo_conf[odoo_id]["longpolling_port"]}:8069'
+                f'{odoo_conf[odoo_id]["longpolling_port"]}:8069',
+                *odoo_conf[odoo_id].get('ports', [])
             ],
-            'labels': generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl),
-            'environment': generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])),
+            'labels': {**generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl), **odoo_conf[odoo_id].get('labels', {})},
+            'environment': {**generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])), **odoo_conf[odoo_id].get('environment', {})},
         }
+
+        restricted_keys = ['environment', 'hostname', 'container_name', 'image', 'volumes', 'restart', 'ports', 'labels']
+        for key in restricted_keys:
+            if key in odoo_conf[odoo_id].get('compose', {}):
+                write_err(f"'{key}' is not allowed in compose section of odoo-{odoo_id}")
+                exit(10)
+
         compose['services'][f'odoo-{odoo_id}'].update(odoo_conf[odoo_id].get('compose', {}))
 
     if traefik_conf.get('enable', True):
@@ -585,7 +596,7 @@ def init_module(ctx, conf):
         "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
-        "--env", "ONESHOT=True",
+        "--env", "ODOO_ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
@@ -636,7 +647,7 @@ def update_module(ctx, conf):
         "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
-        "--env", "ONESHOT=True",
+        "--env", "ODOO_ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
@@ -782,18 +793,15 @@ def main():
         write_err("This script only supports GNU/Linux OS with systemd")
         exit(15)
 
-    # Check if running as root
-    if getuid() == 0:
-        write_err("This script should not be run as root")
-        exit(15)
-
     if ODOOCTL_DIR[0] != "/":
         write_err("ODOOCTL_DIR must be absolute path")
 
-    # Check if ".." is in ODOOCTL_DIR
     if ".." in ODOOCTL_DIR:
         write_err("ODOOCTL_DIR must not contain '..'")
         exit(15)
+
+    if not DOCKER_HOST.startswith('unix://'):
+        write_err('Only unix socket is supported as of now.')
 
     args, flags = parse_args(argv)
     conf = parse_config(f"{ODOOCTL_DIR}/Odoofile")

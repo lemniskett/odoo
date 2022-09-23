@@ -22,7 +22,7 @@ traefik {
 }
 
 odoo "15" {
-  version = "15.0-rootless"
+  version = "15.0"
   hostnames = ["localhost", "example.localhost"]
   xmlrpc_port = 8069
   longpolling_port = 8072

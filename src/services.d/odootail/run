@@ -2,4 +2,9 @@
 
 cd /opt/odoo
 
-tail -f "$ODOOCONF__options__logfile"
+# Check if ODOOCONF__options__logfile is set
+if [ ! -z "$ODOOCONF__options__logfile" ]; then
+    tail -f "$ODOOCONF__options__logfile"
+else
+    sleep infinity
+fi
