@@ -201,11 +201,10 @@ def parse_odoo_conf(conf):
     return odoo_conf
 
 
-def generate_conf(traefik_conf, odoo_conf):
+def generate_conf(traefik_conf, odoo_conf, network_name):
     """
     Generates the configuration files.
     """
-    network_name = ODOOCTL_DIR[1:].replace("/", "-")
     docker_socket = DOCKER_HOST.replace("unix://", "")
     compose = {
         'version': DOCKER_COMPOSE_VERSION,
@@ -370,10 +369,12 @@ def generate_conf(traefik_conf, odoo_conf):
 
     if traefik_conf.get('enable', True):
         create_dir(".traefik")
+        create_dir(".traefik/domains")
         with open(".traefik/traefik.yml", "w") as f:
             yaml.dump(traefik, f)
         traefik_hash = sha256(json.dumps(traefik, sort_keys=True).encode('utf-8')).hexdigest()
         compose['services']['traefik']['labels']['config.hash'] = traefik_hash
+
 
     with open(".docker-compose.yml", "w") as f:
         yaml.dump(compose, f)
@@ -391,7 +392,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
     hostnames = conf['hostnames']
     odoo_conf_hash = sha256(json.dumps(conf['config'], sort_keys=True).encode('utf-8')).hexdigest()
     labels = {
-        'config.hash': odoo_conf_hash,
+        'odoo.config-hash': odoo_conf_hash,
         'traefik.enable': 'true',
     }
     for hostname_conf in hostnames:
@@ -498,8 +499,9 @@ def reconfigure(ctx, conf):
     """
     create_dir(ODOOCTL_DIR)
     chdir(ODOOCTL_DIR)
+    network_name = conf.get('network', ODOOCTL_DIR[1:].replace("/", "-"))
     if not ctx.generate:
-        create_network(ODOOCTL_DIR[1:].replace("/", "-"))
+        create_network(network_name)
 
     if ctx.generate and ctx.force:
         write_err("--generate and --force don't work well together :(")
@@ -507,7 +509,7 @@ def reconfigure(ctx, conf):
 
     traefik_conf = conf.get('traefik', [{'enable': False}])[0]
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    generate_conf(traefik_conf, odoo_conf)
+    generate_conf(traefik_conf, odoo_conf, network_name)
 
     if ctx.generate:
         return

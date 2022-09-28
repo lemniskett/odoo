@@ -61,6 +61,7 @@ RUN set -ex; \
         screen \
         util-linux \
         vim \
+        locales \
         htop; \
     pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/*; \
     rm -rf /wheels/; \
@@ -104,6 +105,11 @@ RUN set -ex; \
     useradd -d /opt/odoo odoo; \
     chown -R odoo:odoo /opt/odoo
 
+# Set locale
+RUN set -ex; \
+    sed -i '/en_US.UTF-8/s/^# //g' /etc/locale.gen; \
+    locale-gen
+
 # Set cwd
 WORKDIR /opt/odoo
 
@@ -117,7 +123,10 @@ ENV \
     ODOOCONF__options__logfile=logs/odoo-${ODOO_VER}.log \
     ODOOCONF__options__list_db=True \
     OARGS=--config=etc/odoo.conf \
-    ODOO_STAGE=start
+    ODOO_STAGE=start \
+    LANG=en_US.UTF-8 \
+    LANGUAGE=en_US:en \
+    LC_ALL=en_US.UTF-8
 LABEL maintainer="Syahrial Agni Prasetya <syahrial@mplus.software>"
 
 # EXPOSE doesn't actually do anything, it's just gives metadata to the container
