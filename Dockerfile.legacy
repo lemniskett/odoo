@@ -35,7 +35,6 @@ ARG \
     DEBIAN_FRONTEND=noninteractive \
     S6_VER=3.1.2.1 \
     PSQL_VER=14 \
-    WKHTMLTOPDF_VER=0.12.6-1 \
     NODEJS_VER=16 \
     ARCH \
     ODOO_VER 
@@ -51,8 +50,6 @@ RUN set -ex; \
 # Install Odoo Dependencies
 COPY --from=builder /usr/src/app/wheels  /wheels/
 RUN set -ex; \
-    curl -L https://github.com/wkhtmltopdf/packaging/releases/download/${WKHTMLTOPDF_VER}/wkhtmltox_${WKHTMLTOPDF_VER}.${RELEASE_CODENAME}_${ARCH}.deb \
-        -o /tmp/wkhtmltopdf.deb; \
     apt update; \
     apt upgrade -y; \
     apt install --no-install-recommends -y \
@@ -65,9 +62,7 @@ RUN set -ex; \
         locales \
         htop; \
     pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/*; \
-    rm -rf /wheels/; \
-    apt install --no-install-recommends -y /tmp/wkhtmltopdf.deb; \
-    rm -f /tmp/wkhtmltopdf.deb
+    rm -rf /wheels/
 
 # Install NodeJS
 RUN set -ex; \
@@ -107,6 +102,7 @@ COPY ./src/cont-init.d/* /etc/cont-init.d/
 COPY ./src/services.d/odoo/* /etc/services.d/odoo/
 COPY ./src/services.d/odootail/* /etc/services.d/odootail/
 COPY ./src/bin/* /usr/local/bin/
+COPY ./wkhtmltopdf /usr/local/bin/wkhtmltopdf
 RUN set -ex; \
     chmod +x /usr/local/bin/* /etc/cont-init.d/* /etc/services.d/odoo/* /etc/services.d/odootail/*; \
     useradd -d /opt/odoo odoo; \

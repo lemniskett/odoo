@@ -445,7 +445,8 @@ def generate_odoo_conf(conf, odoo_id, apt, pip, pip_file):
         'PIP_INSTALL': ' '.join(pip),
         'PIP_INSTALL_FILE': ' '.join(pip_file),
         'ODOOCONF__options__proxy_mode': 'True',
-        'ODOOCONF__options__logfile': f'logs/odoo-{odoo_id}.log'
+        'ODOOCONF__options__logfile': f'logs/odoo-{odoo_id}.log',
+        'WKHTMLTOPDF_SERVER': 'http://wkhtmltopdf-server:2777'
     }
     for section, keys in conf.items():
         try:
@@ -791,8 +792,8 @@ def psql(ctx, conf):
 
 
 def main():
-    if not (uname().system == "Linux" and system("systemctl --version >/dev/null 2>&1") == 0):
-        write_err("This script only supports GNU/Linux OS with systemd")
+    if not (uname().system == "Linux"):
+        write_err("This script only supports Linux")
         exit(15)
 
     if ODOOCTL_DIR[0] != "/":
