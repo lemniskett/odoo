@@ -17,7 +17,6 @@ DOCKER_HOST = environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')
 DOCKER_COMPOSE_VERSION = "2"
 TRAEFIK_IMAGE = "docker.io/library/traefik"
 TRAEFIK_TAG = "2.9"
-ODOO_IMAGE = "registry.gitlab.com/mplus-software/odoo"
 PSQL_IMAGE = "docker.io/library/postgres"
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
 XMLRPC_PORT = 8069
@@ -568,7 +567,7 @@ def init_module(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    version = odoo_conf[ctx.odoo_id]['version']
+    image = odoo_conf[ctx.odoo_id]['image']
     env = get_odoo_env(ctx.odoo_id, network_name)
     bind_mounts = [
         f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
@@ -604,7 +603,7 @@ def init_module(ctx, conf):
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"OARGS=--database={ctx.db} --init={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
-        f"{ODOO_IMAGE}:{version}"
+        image
     ]
     docker(cmd)
     if not ctx.no_restart:
@@ -619,7 +618,7 @@ def update_module(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    version = odoo_conf[ctx.odoo_id]['version']
+    image = odoo_conf[ctx.odoo_id]['image']
     env = get_odoo_env(ctx.odoo_id, network_name)
     bind_mounts = [
         f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
@@ -655,7 +654,7 @@ def update_module(ctx, conf):
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"OARGS=--database={ctx.db} --update={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
-        f"{ODOO_IMAGE}:{version}"
+        image
     ]
     docker(cmd)
     if not ctx.no_restart:
