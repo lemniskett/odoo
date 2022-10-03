@@ -340,7 +340,7 @@ def generate_conf(traefik_conf, odoo_conf, network_name):
         compose['services'][f'odoo-{odoo_id}'] = {
             'hostname': f'odoo-{odoo_id}',
             'container_name': f'{network_name}-odoo-{odoo_id}',
-            'image': f'{ODOO_IMAGE}:{odoo_conf[odoo_id]["version"]}',
+            'image': odoo_conf[odoo_id]["image"],
             'volumes': [
                 f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
                 f'{ODOOCTL_DIR}/.apt-cache:/var/cache/apt/archives',
