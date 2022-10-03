@@ -6,7 +6,7 @@ HEADER_HTML=$(echo "$*" | grep -o -- '--header-html [^ ]*' | cut -d ' ' -f 2)
 FOOTER_HTML=$(echo "$*" | grep -o -- '--footer-html [^ ]*' | cut -d ' ' -f 2)
 OUTPUT_PDF=$(echo "$*" | awk '{print $NF}')
 BODY_HTML=$(echo "$*" | awk '{print $(NF-1)}')
-ARGS=$(echo "$*" | sed -e "s/--header-html $HEADER_HTML//g" | sed -e "s/--footer-html $FOOTER_HTML//g" | sed -e "s/$OUTPUT_PDF//g" | sed -e "s/$BODY_HTML//g" | sed -e "s/  / /g")
+ARGS=$(echo "$*" | sed -e "s#--header-html $HEADER_HTML##g" | sed -e "s#--footer-html $FOOTER_HTML##g" | sed -e "s#$OUTPUT_PDF##g" | sed -e "s#$BODY_HTML##g" | sed -e "s#  # #g")
 
 echo "HEADER_HTML: $HEADER_HTML"
 echo "FOOTER_HTML: $FOOTER_HTML"
