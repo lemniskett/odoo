@@ -17,10 +17,12 @@ DOCKER_HOST = environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')
 DOCKER_COMPOSE_VERSION = "2"
 TRAEFIK_IMAGE = "docker.io/library/traefik"
 TRAEFIK_TAG = "2.9"
-PSQL_IMAGE = "docker.io/library/postgres"
+PSQL_IMAGE = "quay.io/mplus-software/psql"
 PSQL_TAG = "latest"
 WKHTMLTOPDF_SERVER_IMAGE = "quay.io/mplus-software/wkhtmltopdf-server"
 WKHTMLTOPDF_SERVER_TAG = "latest"
+LOGROTATE_IMAGE = "quay.io/mplus-software/logrotate"
+LOGROTATE_TAG = "latest"
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
 XMLRPC_PORT = 8069
 LONGPOLLING_PORT = 8072
@@ -203,44 +205,14 @@ def parse_odoo_conf(conf):
     return odoo_conf
 
 
-def generate_conf(traefik_conf, odoo_conf, network_name):
+def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_conf, network_name):
     """
     Generates the configuration files.
     """
     docker_socket = DOCKER_HOST.replace("unix://", "")
     compose = {
         'version': DOCKER_COMPOSE_VERSION,
-        'services': {
-            'traefik': {
-                'hostname': 'traefik',
-                'container_name': f'{network_name}-traefik',
-                'image': f'{TRAEFIK_IMAGE}:{TRAEFIK_TAG}',
-                'ports': [
-                    f'{traefik_conf.get("port", 8080)}:8080',
-                    '80:80',
-                    '443:443'
-                ],
-                'volumes': [
-                    f'{docker_socket}:/var/run/docker.sock',
-                    f'{ODOOCTL_DIR}/.traefik:/etc/traefik',
-                    f'{ODOOCTL_DIR}/logs/traefik:/logs'
-                ],
-                'environment': {},
-                'restart': 'unless-stopped',
-                'labels': {
-                    'traefik.enable': 'false',
-                },
-            },
-            'wkhtmltopdf-server': {
-                'hostname': 'wkhtmltopdf-server',
-                'container_name': f'{network_name}-wkhtmltopdf-server',
-                'image': f'{WKHTMLTOPDF_SERVER_IMAGE}:{WKHTMLTOPDF_SERVER_TAG}',
-                'restart': 'unless-stopped',
-                'labels': {
-                    'traefik.enable': 'false'
-                }
-            }
-        },
+        'services': {},
         'networks': {
             'default': {
                 'name': network_name,
@@ -343,8 +315,6 @@ def generate_conf(traefik_conf, odoo_conf, network_name):
                     }
                 }
             }
-            for secret in traefik_conf['ssl'].get('secrets', []):
-                compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
 
 
     for odoo_id in odoo_conf:
@@ -380,12 +350,58 @@ def generate_conf(traefik_conf, odoo_conf, network_name):
 
     if traefik_conf.get('enable', True):
         create_dir(".traefik")
-        create_dir(".traefik/domains")
         with open(".traefik/traefik.yml", "w") as f:
             yaml.dump(traefik, f)
         traefik_hash = sha256(json.dumps(traefik, sort_keys=True).encode('utf-8')).hexdigest()
-        compose['services']['traefik']['labels']['config.hash'] = traefik_hash
+        compose['services']['traefik'] =  {
+            'hostname': 'traefik',
+            'container_name': f'{network_name}-traefik',
+            'image': f'{TRAEFIK_IMAGE}:{TRAEFIK_TAG}',
+            'ports': [
+                f'{traefik_conf.get("port", 8080)}:8080',
+                '80:80',
+                '443:443'
+            ],
+            'volumes': [
+                f'{docker_socket}:/var/run/docker.sock',
+                f'{ODOOCTL_DIR}/.traefik:/etc/traefik',
+                f'{ODOOCTL_DIR}/logs/traefik:/logs'
+            ],
+            'environment': {},
+            'restart': 'unless-stopped',
+            'labels': {
+                'traefik.enable': 'false',
+                'config.hash': traefik_hash
+            },
+        }
 
+    if wkhtmltopdf_server_conf.get('enable', True):
+        compose['services']['wkhtmltopdf-server'] = {
+            'hostname': 'wkhtmltopdf-server',
+            'container_name': f'{network_name}-wkhtmltopdf-server',
+            'image': f'{WKHTMLTOPDF_SERVER_IMAGE}:{WKHTMLTOPDF_SERVER_TAG}',
+            'restart': 'unless-stopped',
+            'labels': {
+                'traefik.enable': 'false'
+            },
+        }
+
+    if logrotate_conf.get('enable', True):
+        compose['services']['logrotate'] = {
+            'hostname': 'logrotate',
+            'container_name': f'{network_name}-logrotate',
+            'image': f'{LOGROTATE_IMAGE}:{LOGROTATE_TAG}',
+            'restart': 'unless-stopped',
+            'volumes': [
+                './logs:/logs'
+            ],
+            'labels': {
+                'traefik.enable': 'false'
+            }
+        }
+        if ssl_provider != "http":
+            for secret in traefik_conf['ssl'].get('secrets', []):
+                    compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
 
     with open(".docker-compose.yml", "w") as f:
         yaml.dump(compose, f)
@@ -519,9 +535,12 @@ def reconfigure(ctx, conf):
         write_err("--generate and --force don't work well together :(")
         exit(15)
 
-    traefik_conf = conf.get('traefik', [{'enable': False}])[0]
+    traefik_conf = conf.get('traefik', [{'enable': True}])[0]
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    generate_conf(traefik_conf, odoo_conf, network_name)
+    wkhtmltopdf_server_conf = conf.get('wkhtmltopdf_server', [{'enable': True}])[0]
+    logrotate_conf = conf.get('wkhtmltopdf_server', [{'enable': True}])[0]
+
+    generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_conf, network_name)
 
     if ctx.generate:
         return

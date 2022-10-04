@@ -45,3 +45,11 @@ odoo "15" {
     mem_limit = "512M"
   }
 }
+
+wkhtmltopdf_server {
+  enable = true
+}
+
+logrotate {
+  enable = true
+}
