@@ -18,6 +18,9 @@ DOCKER_COMPOSE_VERSION = "2"
 TRAEFIK_IMAGE = "docker.io/library/traefik"
 TRAEFIK_TAG = "2.9"
 PSQL_IMAGE = "docker.io/library/postgres"
+PSQL_TAG = "latest"
+WKHTMLTOPDF_SERVER_IMAGE = "quay.io/mplus-software/wkhtmltopdf-server"
+WKHTMLTOPDF_SERVER_TAG = "latest"
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
 XMLRPC_PORT = 8069
 LONGPOLLING_PORT = 8072
@@ -227,6 +230,15 @@ def generate_conf(traefik_conf, odoo_conf, network_name):
                 'labels': {
                     'traefik.enable': 'false',
                 },
+            },
+            'wkhtmltopdf-server': {
+                'hostname': 'wkhtmltopdf-server',
+                'container_name': f'{network_name}-wkhtmltopdf-server',
+                'image': f'{WKHTMLTOPDF_SERVER_IMAGE}:{WKHTMLTOPDF_SERVER_TAG}',
+                'restart': 'unless-stopped',
+                'labels': {
+                    'traefik.enable': 'false'
+                }
             }
         },
         'networks': {
@@ -711,7 +723,7 @@ def status(ctx, conf):
     docker(["compose", "-f", ".docker-compose.yml", "ps", "-a"])
 
 
-@command(description="Deletes the stack")
+@command(description="Deletes the stack", flags={'with-network': 'Also destroys the network'})
 def destroy(ctx, conf):
     """
     Deletes the stack.
@@ -720,7 +732,8 @@ def destroy(ctx, conf):
         chdir(ODOOCTL_DIR)
         docker(["compose", "-f", ".docker-compose.yml", "down"])
         print("Removing network ", end="")
-        docker(["network", "rm", network_name(ctx, conf)])
+        if ctx.with_network:
+            docker(["network", "rm", network_name(ctx, conf)])
     except FileNotFoundError:
         print("No stack found")
 
@@ -786,7 +799,7 @@ def psql(ctx, conf):
         cmd.extend(["--pull", "always"])
     if stdin.isatty():
         cmd.append("--tty")
-    cmd.extend([PSQL_IMAGE, *psql_args])
+    cmd.extend([f"{PSQL_IMAGE}:{PSQL_TAG}", *psql_args])
     docker(cmd)
 
 
