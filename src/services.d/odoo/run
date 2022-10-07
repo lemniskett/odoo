@@ -12,4 +12,4 @@ else
     screen_cmd=""
 fi
 
-exec runuser -u odoo -- $screen_cmd python server/odoo-bin ${OARGS}
+exec runuser -u odoo -- $screen_cmd python server/odoo-bin ${ODOO_ARGS}

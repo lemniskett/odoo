@@ -324,7 +324,7 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
             'image': odoo_conf[odoo_id]["image"],
             'volumes': [
                 f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
-                f'{ODOOCTL_DIR}/.apt-cache:/var/cache/apt/archives',
+                f'{ODOOCTL_DIR}/.apk-cache:/var/cache/apk',
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/data:/opt/odoo/data',
                 f'{ODOOCTL_DIR}/odoo-{odoo_id}/extra-addons:/opt/odoo/extra-addons',
                 f'{ODOOCTL_DIR}/logs/odoo-{odoo_id}:/opt/odoo/logs',
@@ -337,7 +337,7 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
                 *odoo_conf[odoo_id].get('ports', [])
             ],
             'labels': {**generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl), **odoo_conf[odoo_id].get('labels', {})},
-            'environment': {**generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])), **odoo_conf[odoo_id].get('environment', {})},
+            'environment': {**generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apk', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])), **odoo_conf[odoo_id].get('environment', {})},
         }
 
         restricted_keys = ['environment', 'hostname', 'container_name', 'image', 'volumes', 'restart', 'ports', 'labels']
@@ -399,9 +399,10 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
                 'traefik.enable': 'false'
             }
         }
-        if ssl_provider != "http":
-            for secret in traefik_conf['ssl'].get('secrets', []):
-                    compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
+        if ssl:
+            if ssl_provider != "http":
+                for secret in traefik_conf['ssl'].get('secrets', []):
+                        compose['services']['traefik']['environment'][secret.upper()] = traefik_conf['ssl']['secrets'][secret]
 
     with open(".docker-compose.yml", "w") as f:
         yaml.dump(compose, f)
@@ -466,9 +467,9 @@ def get_odoo_env(odoo_id, network_name):
     return env
 
 
-def generate_odoo_conf(conf, odoo_id, apt, pip, pip_file):
+def generate_odoo_conf(conf, odoo_id, apk, pip, pip_file):
     odoo_env = {
-        'APT_INSTALL': ' '.join(apt),
+        'APK_INSTALL': ' '.join(apk),
         'PIP_INSTALL': ' '.join(pip),
         'PIP_INSTALL_FILE': ' '.join(pip_file),
         'ODOOCONF__options__proxy_mode': 'True',
@@ -626,14 +627,14 @@ def init_module(ctx, conf):
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
         "--env", "ODOOCONF__options__logfile",
-        "--env", "APT_INSTALL",
+        "--env", "APK_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
         "--env", "ODOO_ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
-        "--env", f"OARGS=--database={ctx.db} --init={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
+        "--env", f"ODOO_ARGS=--database={ctx.db} --init={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
         image
     ]
     docker(cmd)
@@ -677,14 +678,14 @@ def update_module(ctx, conf):
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
         "--env", "ODOOCONF__options__logfile",
-        "--env", "APT_INSTALL",
+        "--env", "APK_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
         "--env", "ODOO_ONESHOT=True",
         "--env", "PURGE_CACHE=True",
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
-        "--env", f"OARGS=--database={ctx.db} --update={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
+        "--env", f"ODOO_ARGS=--database={ctx.db} --update={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
         image
     ]
     docker(cmd)
@@ -750,9 +751,11 @@ def destroy(ctx, conf):
     try:
         chdir(ODOOCTL_DIR)
         docker(["compose", "-f", ".docker-compose.yml", "down"])
-        print("Removing network ", end="")
         if ctx.with_network:
+            print("Removing network ", end="")
             docker(["network", "rm", network_name(ctx, conf)])
+        else:
+            print("Network is kept, use --with-network to remove it.")
     except FileNotFoundError:
         print("No stack found")
 

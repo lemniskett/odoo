@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
 if [ ! -z "$PURGE_CACHE" ]; then
+    echo "Purging cache"
     exec purge-cache
 fi

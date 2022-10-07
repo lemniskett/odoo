@@ -1,13 +1,16 @@
 #!/usr/bin/env bash
 
-if [ ! -z "$APT_INSTALL" ]; then
-    env DEBIAN_FRONTEND=noninteractive apt install -y ${APT_INSTALL}
+if [ ! -z "$APK_INSTALL" ]; then
+    echo "Installing packages: $APK_INSTALL"
+    apk add ${APK_INSTALL}
 fi
 
 if [ ! -z "$PIP_INSTALL" ]; then
+    echo "Installing packages: $PIP_INSTALL"
     pip install ${PIP_INSTALL}
 fi
 
 if [ ! -z "$PIP_INSTALL_FILE" ]; then
+    echo "Installing packages from file: $PIP_INSTALL_FILE"
     requirements-install ${PIP_INSTALL_FILE}
 fi

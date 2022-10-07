@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+
+# Check if /opt/odoo/data is empty, if so, chown it to odoo
+if [ "$(ls -A /opt/odoo/data)" ]; then
+    echo "Data directory is not empty, not changing permissions"
+else
+    echo "Data directory is empty, changing permissions"
+    chown -R odoo:odoo /opt/odoo/data
+fi
+
+# Check if /opt/odoo/logs is empty, if so, chown it to odoo
+if [ "$(ls -A /opt/odoo/logs)" ]; then
+    echo "Logs directory is not empty, not changing permissions"
+else
+    echo "Logs directory is empty, changing permissions"
+    chown -R odoo:odoo /opt/odoo/logs
+fi

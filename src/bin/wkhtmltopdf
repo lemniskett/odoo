@@ -4,6 +4,7 @@ export WKHTMLTOPDF_SERVER="${WKHTMLTOPDF_SERVER:-http://localhost:2777}"
 
 if [[ $1 = "--version" ]]; then
     curl "$WKHTMLTOPDF_SERVER/version"
+    exit 0
 fi
 
 HEADER_HTML=$(echo "$*" | grep -o -- '--header-html [^ ]*' | cut -d ' ' -f 2)
@@ -14,7 +15,7 @@ ARGS=$(echo "$*" | sed -e "s#--header-html $HEADER_HTML##g" | sed -e "s#--footer
 
 # Check if OUTPUT_PDF ends with .pdf
 if [ "${OUTPUT_PDF: -4}" != ".pdf" ]; then
-    echo "Output file must end with .pdf"
+    echo "Output file must end with .pdf" >&2
     exit 1
 fi
     
