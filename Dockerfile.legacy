@@ -16,14 +16,14 @@ RUN set -ex; \
         libxslt-dev \
         libzip-dev \
         openldap-dev \
-        libpq-dev \
+        postgresql-dev \
         libjpeg-turbo-dev \
         libffi-dev \
         openssl-dev \
         gcc \
         g++ \
         make \
-        musl-dev; \
+        musl-dev;
 RUN set -ex; \
     sed -i 's/psycopg2.*/psycopg2==2.8.6/g' /tmp/requirements.txt; \
     pip wheel -r /tmp/requirements.txt  --wheel-dir /usr/src/app/wheels    
