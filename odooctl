@@ -501,6 +501,16 @@ def parse_args_after_delimiter():
     return args
 
 
+def check_odoo_exists(odoo_id, conf):
+    """
+    Checks if the odoo_id in the config file exists
+    """
+    odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
+    if odoo_id not in odoo_conf:
+        write_err(f"Odoo {odoo_id} not found in config file")
+        exit(1)
+
+
 @command(description="Shows this help message.")
 def help(ctx, conf):
     """
@@ -559,6 +569,7 @@ def start(ctx, conf):
     """
     Starts an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "start", f"odoo-{ctx.odoo_id}"])
 
@@ -568,6 +579,7 @@ def stop(ctx, conf):
     """
     Stops an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "stop", f"odoo-{ctx.odoo_id}"])
 
@@ -577,6 +589,7 @@ def restart(ctx, conf):
     """
     Restarts an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "restart", f"odoo-{ctx.odoo_id}"])
 
@@ -586,6 +599,7 @@ def update(ctx, conf):
     """
     Updates an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "pull", f"odoo-{ctx.odoo_id}"])
     docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
@@ -596,6 +610,7 @@ def init_module(ctx, conf):
     """
     Initializes odoo modules.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
@@ -647,6 +662,7 @@ def update_module(ctx, conf):
     """
     Initializes odoo modules.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
@@ -698,6 +714,7 @@ def shell(ctx, conf):
     """
     Opens a shell in an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "bash"])
 
@@ -707,6 +724,7 @@ def top(ctx, conf):
     """
     Displays processes running in an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     docker(["compose", "-f", ".docker-compose.yml", "top", f"odoo-{ctx.odoo_id}"])
 
@@ -716,6 +734,7 @@ def tail(ctx, conf):
     """
     Views the logs of an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     lines = "10" if not ctx.lines else ctx.lines
     docker(["compose", "-f", ".docker-compose.yml", "logs", "--no-log-prefix", "--follow", "--tail", lines, f"odoo-{ctx.odoo_id}"])
@@ -726,6 +745,7 @@ def attach(ctx, conf):
     """
     Attaches to an Odoo instance.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     if not ctx.no_prompt:
         print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
@@ -765,6 +785,7 @@ def backup(ctx, conf):
     """
     Backups the database.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
@@ -781,6 +802,7 @@ def ehash(ctx, conf):
     """
     Get matching Odoo Enterprise commit hash.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     network = ODOOCTL_DIR[1:].replace("/", "-")
     docker(["inspect", "--format", "{{index .Config.Labels \"com.mplussoftware.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
@@ -802,6 +824,7 @@ def psql(ctx, conf):
     """
     Launch psql client.
     """
+    check_odoo_exists(ctx.odoo_id, conf)
     psql_args = parse_args_after_delimiter()
     network = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_env = get_odoo_env(ctx.odoo_id, network)

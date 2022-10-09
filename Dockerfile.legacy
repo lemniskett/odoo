@@ -54,6 +54,10 @@ RUN set -ex; \
         htop \
         libxslt \
         libjpeg \
+        gcc \
+        g++ \
+        make \
+        musl-dev \
         alpine-conf; \
     pip install --no-cache-dir --no-index --find-links=/wheels/ /wheels/*; \
     rm -rf /wheels/
