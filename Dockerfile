@@ -92,7 +92,6 @@ COPY ./src/bin/* /usr/local/bin/
 RUN set -ex; \
     setup-apkcache /var/cache/apk; \
     chmod +x /usr/local/bin/* /etc/cont-init.d/* /etc/services.d/odoo/* /etc/services.d/odootail/*; \
-    echo 'source /etc/profile' >> /etc/bash/bashrc; \
     addgroup -S -g 1000 odoo; \
     adduser -u 1000 -S -s /bin/bash -h /opt/odoo odoo odoo; \
     chown -R odoo:odoo /opt/odoo

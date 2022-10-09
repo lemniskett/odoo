@@ -716,7 +716,7 @@ def shell(ctx, conf):
     """
     check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
-    docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "bash"])
+    docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "bash", "--rcfile", "/etc/profile"])
 
 
 @command(description="Displays processes running in an Odoo instance", args=["odoo-id"])
