@@ -333,7 +333,7 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
             'restart': 'unless-stopped',
             'ports': [
                 f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
-                f'{odoo_conf[odoo_id]["longpolling_port"]}:8072'
+                f'{odoo_conf[odoo_id]["longpolling_port"]}:8072',
                 *odoo_conf[odoo_id].get('ports', [])
             ],
             'labels': {**generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl), **odoo_conf[odoo_id].get('labels', {})},
