@@ -1,16 +1,17 @@
 #!/usr/bin/env bash
 
-if [ ! -z "$APK_INSTALL" ]; then
-    echo "Installing packages: $APK_INSTALL"
-    apk add ${APK_INSTALL}
+if [ ! -z "$APT_INSTALL" ]; then
+    echo "Installing packages: $APT_INSTALL"
+    env DEBIAN_FRONTEND=noninteractive apt update
+    env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends $APK_INSTALL
 fi
 
 if [ ! -z "$PIP_INSTALL" ]; then
     echo "Installing packages: $PIP_INSTALL"
-    pip install ${PIP_INSTALL}
+    pip install $PIP_INSTALL
 fi
 
 if [ ! -z "$PIP_INSTALL_FILE" ]; then
     echo "Installing packages from file: $PIP_INSTALL_FILE"
-    requirements-install ${PIP_INSTALL_FILE}
+    requirements-install $PIP_INSTALL_FILE
 fi
