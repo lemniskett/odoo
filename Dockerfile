@@ -27,7 +27,7 @@ RUN set -ex; \
         build-essential;
 RUN pip wheel -r /tmp/requirements.txt  --wheel-dir /usr/src/app/wheels    
 
-FROM python:${PYTHON_VERSION}-buster as runner
+FROM python:${PYTHON_VERSION}-bullseye as runner
 ARG \
     DEBIAN_FRONTEND=noninteractive \
     S6_VERSION=3.1.2.1 \
