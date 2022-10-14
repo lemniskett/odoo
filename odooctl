@@ -463,7 +463,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
 
 def get_odoo_env(odoo_id, network_name):
     res = json.loads(docker(["inspect", "--format", '{{json .Config.Env}}', f'{network_name}-odoo-{odoo_id}'], capture=True)[0])
-    env = {kv.split('=')[0]: kv.split('=')[1] for kv in res}
+    env = {kv.split('=', 1)[0]: kv.split('=', 1)[1] for kv in res}
     return env
 
 
