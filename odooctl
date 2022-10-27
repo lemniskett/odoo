@@ -205,6 +205,19 @@ def parse_odoo_conf(conf):
     return odoo_conf
 
 
+def get_image_build(image):
+    build = None
+    if image.startswith("build://"):
+        try:
+            build = image[8:]
+            image = image[8:].replace("/", "-") if image[0] != "/" else image[9:].replace("/", "-")
+        except IndexError:
+            write_err("Invalid build path")
+            exit(1)
+
+    return image, build
+    
+
 def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_conf, network_name):
     """
     Generates the configuration files.
@@ -318,10 +331,11 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
 
 
     for odoo_id in odoo_conf:
+        image, build = get_image_build(odoo_conf[odoo_id]['image'])
         compose['services'][f'odoo-{odoo_id}'] = {
             'hostname': f'odoo-{odoo_id}',
             'container_name': f'{network_name}-odoo-{odoo_id}',
-            'image': odoo_conf[odoo_id]["image"],
+            'image': image,
             'volumes': [
                 f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
                 f'{ODOOCTL_DIR}/.apt-cache:/var/cache/apt/archives',
@@ -339,6 +353,8 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
             'labels': {**generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl), **odoo_conf[odoo_id].get('labels', {})},
             'environment': {**generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])), **odoo_conf[odoo_id].get('environment', {})},
         }
+        if build:
+            compose['services'][f'odoo-{odoo_id}']['build'] = build
 
         restricted_keys = ['environment', 'hostname', 'container_name', 'image', 'volumes', 'restart', 'ports', 'labels']
         for key in restricted_keys:
@@ -605,6 +621,17 @@ def update(ctx, conf):
     docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
 
 
+@command(description="Rebuilds an Odoo instance", args=["odoo-id"])
+def rebuild(ctx, conf):
+    """
+    Rebuilds an Odoo instance.
+    """
+    check_odoo_exists(ctx.odoo_id, conf)
+    chdir(ODOOCTL_DIR)
+    docker(["compose", "-f", ".docker-compose.yml", "build", f"odoo-{ctx.odoo_id}"])
+    docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
+
+
 @command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after installing modules'})
 def init_module(ctx, conf):
     """
@@ -614,7 +641,8 @@ def init_module(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    image = odoo_conf[ctx.odoo_id]['image']
+    image, build = get_image_build(odoo_conf[ctx.odoo_id]['image'])
+
     env = get_odoo_env(ctx.odoo_id, network_name)
     bind_mounts = [
         f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
@@ -666,7 +694,8 @@ def update_module(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    image = odoo_conf[ctx.odoo_id]['image']
+    image, build = get_image_build(odoo_conf[ctx.odoo_id]['image'])
+
     env = get_odoo_env(ctx.odoo_id, network_name)
     bind_mounts = [
         f'{ODOOCTL_DIR}/.pip-cache:/opt/odoo/pip-cache',
