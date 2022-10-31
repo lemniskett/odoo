@@ -3,7 +3,7 @@
 if [ ! -z "$APT_INSTALL" ]; then
     echo "Installing packages: $APT_INSTALL"
     env DEBIAN_FRONTEND=noninteractive apt update
-    env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends $APK_INSTALL
+    env DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends $APT_INSTALL
 fi
 
 if [ ! -z "$PIP_INSTALL" ]; then
