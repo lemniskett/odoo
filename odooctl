@@ -24,8 +24,8 @@ WKHTMLTOPDF_SERVER_TAG = "latest"
 LOGROTATE_IMAGE = "quay.io/mplus-software/logrotate"
 LOGROTATE_TAG = "latest"
 ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
-XMLRPC_PORT = 8069
-LONGPOLLING_PORT = 8072
+HTTP_PORT = 8069
+WEBSOCKET_PORT = 8072
 VERBOSE = False
 
 commands = {}
@@ -432,6 +432,12 @@ def odoo_custom_mount(mounts, odoo_id):
     return custom_mounts
 
 
+def get_odoo_image_labels(image):
+    if image.startswith('build://'):
+        image = image[8:].replace("/", "-") if image[0] != "/" else image[9:].replace("/", "-")
+    return json.loads(docker(['image', 'inspect', '--format', '{{json .Config.Labels}}', image], capture=True)[0])
+
+
 def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
     hostnames = conf['hostnames']
     odoo_conf_hash = sha256(json.dumps(conf['config'], sort_keys=True).encode('utf-8')).hexdigest()
@@ -453,12 +459,15 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
         labels[f'traefik.http.routers.{hostname_label_name}.entrypoints'] = entrypoint
         labels[f'traefik.http.routers.{hostname_label_name}.service'] = hostname_label_name
         labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = ''
-        labels[f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port'] = XMLRPC_PORT
-        labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)'
+        labels[f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port'] = HTTP_PORT
+        if float(get_odoo_image_labels(conf['image']).get('com.mplussoftware.branch', 0)) >= 16:
+            labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/websocket`)'
+        else:
+            labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)'
         labels[f'traefik.http.routers.{hostname_label_name}-rt.entrypoints'] = entrypoint
         labels[f'traefik.http.routers.{hostname_label_name}-rt.service'] = f'{hostname_label_name}-rt'
         labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = ''
-        labels[f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port'] = LONGPOLLING_PORT
+        labels[f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port'] = WEBSOCKET_PORT
         
         if ssl:
             labels[f'traefik.http.routers.{hostname_label_name}.tls.certresolver'] = 'default'
