@@ -11,6 +11,7 @@ from sys import argv, stderr, stdin
 from hashlib import sha256
 from pathlib import Path
 from copy import deepcopy
+from datetime import datetime
 from collections import namedtuple
 
 DOCKER_HOST = environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')
@@ -29,6 +30,12 @@ WEBSOCKET_PORT = 8072
 VERBOSE = False
 
 commands = {}
+orig_system = system
+def system(cmd):
+    if VERBOSE:
+        print(f'=> {cmd}', file=stderr)
+    return orig_system(cmd)
+
 
 class InvalidArguments(Exception):
     pass
@@ -837,10 +844,11 @@ def backup(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    container_ip = docker(["inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", f"{network_name}-odoo-{ctx.odoo_id}"], capture=True)
-    url = f"http://{container_ip}:8069/web/database/backup"
+    container_ip, err = docker(["inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", f"{network_name}-odoo-{ctx.odoo_id}"], capture=True)
+    url = f"http://{container_ip.strip()}:8069/web/database/backup"
     odoo_env = get_odoo_env(ctx.odoo_id, network_name)
-    file_name = f"{ctx.db_name}.zip"
+    date = datetime.now().strftime("%y%m%d")
+    file_name = f"{ctx.db_name}-{date}.zip"
     
     download_file(url, file_name, master_pwd=odoo_env["ODOOCONF__options__admin_passwd"], name=ctx.db_name, backup_format="zip")
 
