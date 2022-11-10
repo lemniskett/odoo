@@ -345,18 +345,13 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
                 *odoo_custom_mount(odoo_conf[odoo_id].get('volumes', []), odoo_id)
             ],
             'restart': 'unless-stopped',
-            'ports': [
-                f'{odoo_conf[odoo_id]["xmlrpc_port"]}:8069',
-                f'{odoo_conf[odoo_id]["longpolling_port"]}:8072',
-                *odoo_conf[odoo_id].get('ports', [])
-            ],
             'labels': {**generate_traefik_labels(odoo_id, entrypoint, odoo_conf[odoo_id], trusted_ips, ssl), **odoo_conf[odoo_id].get('labels', {})},
             'environment': {**generate_odoo_conf(odoo_conf[odoo_id]["config"], odoo_id, odoo_conf[odoo_id].get('apt', []), odoo_conf[odoo_id].get('pip', []), odoo_conf[odoo_id].get('pip_file', [])), **odoo_conf[odoo_id].get('environment', {})},
         }
         if build:
             compose['services'][f'odoo-{odoo_id}']['build'] = build
 
-        restricted_keys = ['environment', 'hostname', 'container_name', 'image', 'volumes', 'restart', 'ports', 'labels']
+        restricted_keys = ['environment', 'hostname', 'container_name', 'image', 'volumes', 'restart', 'labels']
         for key in restricted_keys:
             if key in odoo_conf[odoo_id].get('compose', {}):
                 write_err(f"'{key}' is not allowed in compose section of odoo-{odoo_id}")
@@ -433,9 +428,22 @@ def odoo_custom_mount(mounts, odoo_id):
 
 
 def get_odoo_image_labels(image):
+    should_build = False
+    build_path = None
     if image.startswith('build://'):
+        build_path = image.replace('build://', '')
         image = image[8:].replace("/", "-") if image[0] != "/" else image[9:].replace("/", "-")
-    return json.loads(docker(['image', 'inspect', '--format', '{{json .Config.Labels}}', image], capture=True)[0])
+        should_build = True
+    
+    try:
+        res = json.loads(docker(['image', 'inspect', '--format', '{{json .Config.Labels}}', image], capture=True)[0])
+    except DockerError:
+        if should_build:
+            docker(['build', '-t', image, build_path])
+        else:
+            docker(['pull', image])
+        res = json.loads(docker(['image', 'inspect', '--format', '{{json .Config.Labels}}', image], capture=True)[0])
+    return res
 
 
 def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
@@ -687,6 +695,7 @@ def init_module(ctx, conf):
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"ODOO_ARGS=--database={ctx.db} --init={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
+        "--label", "traefik.enable=false",
         image
     ]
     docker(cmd)
@@ -740,6 +749,7 @@ def update_module(ctx, conf):
         "--env", "ODOO_STAGE=init",
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"ODOO_ARGS=--database={ctx.db} --update={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
+        "--label", "traefik.enable=false",
         image
     ]
     docker(cmd)
@@ -827,8 +837,8 @@ def backup(ctx, conf):
     chdir(ODOOCTL_DIR)
     network_name = ODOOCTL_DIR[1:].replace("/", "-")
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
-    port = odoo_conf[ctx.odoo_id]['xmlrpc_port']
-    url = f"http://localhost:{port}/web/database/backup"
+    container_ip = docker(["inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", f"{network_name}-odoo-{ctx.odoo_id}"], capture=True)
+    url = f"http://{container_ip}:8069/web/database/backup"
     odoo_env = get_odoo_env(ctx.odoo_id, network_name)
     file_name = f"{ctx.db_name}.zip"
     
