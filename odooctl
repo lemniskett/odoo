@@ -656,7 +656,7 @@ def rebuild(ctx, conf):
     docker(["compose", "-f", ".docker-compose.yml", "up", "-d", f"odoo-{ctx.odoo_id}"])
 
 
-@command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after installing modules'})
+@command(description="Initializes odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after installing modules', 'no-stop': 'Do not stop Odoo while installing modules'})
 def init_module(ctx, conf):
     """
     Initializes odoo modules.
@@ -684,6 +684,10 @@ def init_module(ctx, conf):
     else:
         shell_flags = ["--interactive"]
 
+    if not ctx.no_stop:
+        docker(["compose", "-f", ".docker-compose.yml", "stop", f"odoo-{ctx.odoo_id}"])
+
+    when = datetime.now().strftime("%Y%m%d%H%M%S")
     cmd = ["run", "--rm", *shell_flags,
         "--network", network_name,
         *bind_mount_commands,
@@ -693,7 +697,8 @@ def init_module(ctx, conf):
         "--env", "ODOOCONF__options__db_host",
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
-        "--env", "ODOOCONF__options__logfile",
+        "--env", "ODOOCONF__options__logfile=",
+        "--env", "ODOOCONF__options__http_enable=False",
         "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
@@ -703,6 +708,7 @@ def init_module(ctx, conf):
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"ODOO_ARGS=--database={ctx.db} --init={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
         "--label", "traefik.enable=false",
+        "--name", f"{network_name}-odoo-{ctx.odoo_id}-moduleupdate--{ctx.modules.replace(',', '-')}--{when}",
         image
     ]
     docker(cmd)
@@ -747,7 +753,8 @@ def update_module(ctx, conf):
         "--env", "ODOOCONF__options__db_host",
         "--env", "ODOOCONF__options__db_port",
         "--env", "ODOOCONF__options__db_name",
-        "--env", "ODOOCONF__options__logfile",
+        "--env", "ODOOCONF__options__logfile=",
+        "--env", "ODOOCONF__options__http_enable=False",
         "--env", "APT_INSTALL",
         "--env", "PIP_INSTALL",
         "--env", "PIP_INSTALL_FILE",
@@ -757,6 +764,7 @@ def update_module(ctx, conf):
         "--env", "ODOO_DISABLE_TTY=True",
         "--env", f"ODOO_ARGS=--database={ctx.db} --update={ctx.modules} --stop-after-init --config=/opt/odoo/etc/odoo.conf",
         "--label", "traefik.enable=false",
+        "--name", f"{network_name}-odoo-{ctx.odoo_id}-moduleupdate--{ctx.modules.replace(',', '-')}--{when}",
         image
     ]
     docker(cmd)
