@@ -2,6 +2,7 @@
 
 import yaml
 import hcl2
+import lark
 import subprocess
 import json
 import requests
@@ -124,6 +125,9 @@ def parse_config(path):
             return hcl2.load(f)
     except FileNotFoundError:
         write_err("Odoofile not found. create one or use an existing one using ODOOCTL_DIR environment variable.")
+        exit(10)
+    except lark.exceptions.LarkError as e:
+        write_err(f"Error parsing Odoofile: {e}")
         exit(10)
 
 
@@ -716,7 +720,7 @@ def init_module(ctx, conf):
         docker(["compose", "-f", ".docker-compose.yml", "restart", f"odoo-{ctx.odoo_id}"])
 
 
-@command(description="Updates odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after updating modules'})
+@command(description="Updates odoo modules", args=["odoo-id", "db", "modules"], flags={'no-restart': 'Do not restart Odoo after installing modules', 'no-stop': 'Do not stop Odoo while installing modules'})
 def update_module(ctx, conf):
     """
     Initializes odoo modules.
@@ -744,6 +748,10 @@ def update_module(ctx, conf):
     else:
         shell_flags = ["--interactive"]
 
+    if not ctx.no_stop:
+        docker(["compose", "-f", ".docker-compose.yml", "stop", f"odoo-{ctx.odoo_id}"])
+
+    when = datetime.now().strftime("%Y%m%d%H%M%S")
     cmd = ["run", "--rm", *shell_flags,
         "--network", network_name,
         *bind_mount_commands,
