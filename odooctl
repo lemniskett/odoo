@@ -264,7 +264,11 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
 
     traefik = {
         'providers': {
-            'docker': {}
+            'docker': {},
+            'file': {
+                'directory': '/etc/traefik/dynamic',
+                'watch': True
+            }
         },
         'entryPoints': {
             'web': {
@@ -280,6 +284,10 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
         'api': {
             'dashboard': True,
             'insecure': True
+        },
+        'log': {
+            'filePath': '/logs/traefik.log',
+            'level': traefik_conf.get("loglevel", "INFO")
         }
     }
 
@@ -340,6 +348,10 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
                 }
             }
 
+    middlewares = traefik_conf.get('middlewares', [])
+    if middlewares:
+        for entrypoint in traefik['entryPoints']:
+            traefik['entryPoints'][entrypoint]['http']['middlewares'] = middlewares
 
     for odoo_id in odoo_conf:
         image, build = get_image_build(odoo_conf[odoo_id]['image'])
@@ -371,8 +383,9 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
         compose['services'][f'odoo-{odoo_id}'].update(odoo_conf[odoo_id].get('compose', {}))
 
     if traefik_conf.get('enable', True):
-        create_dir(".traefik")
-        with open(".traefik/traefik.yml", "w") as f:
+        create_dir("traefik")
+        create_dir("traefik/dynamic")
+        with open("traefik/traefik.yml", "w") as f:
             yaml.dump(traefik, f)
         traefik_hash = sha256(json.dumps(traefik, sort_keys=True).encode('utf-8')).hexdigest()
         compose['services']['traefik'] =  {
@@ -386,7 +399,7 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
             ],
             'volumes': [
                 f'{docker_socket}:/var/run/docker.sock',
-                f'{ODOOCTL_DIR}/.traefik:/etc/traefik',
+                f'{ODOOCTL_DIR}/traefik:/etc/traefik',
                 f'{ODOOCTL_DIR}/logs/traefik:/logs'
             ],
             'environment': {},
@@ -477,7 +490,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
         labels[f'traefik.http.routers.{hostname_label_name}.rule'] = f'{hostname_matcher}(`{hostname}`)'
         labels[f'traefik.http.routers.{hostname_label_name}.entrypoints'] = entrypoint
         labels[f'traefik.http.routers.{hostname_label_name}.service'] = hostname_label_name
-        labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = ''
+        labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = hostname_args.get('middlewares', '')
         labels[f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port'] = HTTP_PORT
         if float(get_odoo_image_labels(conf['image']).get('com.mplussoftware.branch', 0)) >= 16:
             labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/websocket`)'
@@ -485,7 +498,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
             labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)'
         labels[f'traefik.http.routers.{hostname_label_name}-rt.entrypoints'] = entrypoint
         labels[f'traefik.http.routers.{hostname_label_name}-rt.service'] = f'{hostname_label_name}-rt'
-        labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = ''
+        labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = hostname_args.get('middlewares', '')
         labels[f'traefik.http.services.{hostname_label_name}-rt.loadbalancer.server.port'] = WEBSOCKET_PORT
         
         if ssl:
@@ -493,11 +506,6 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
             labels[f'traefik.http.routers.{hostname_label_name}.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
             labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.certresolver'] = 'default'
             labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
-
-        if 'dbfilter' in hostname_args:
-            labels[f'traefik.http.middlewares.{hostname_label_name}-dbfilter.headers.customrequestheaders.X-Odoo-dbfilter'] = hostname_args['dbfilter']
-            labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] += f'{hostname_label_name}-dbfilter,'
-            labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] += f'{hostname_label_name}-dbfilter,'
 
         labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}.middlewares'][:-1]
         labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'][:-1]
