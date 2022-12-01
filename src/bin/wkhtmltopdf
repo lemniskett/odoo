@@ -21,11 +21,11 @@ fi
 
 wkhtmltopdf_args=""
 
-if [[ -z "$HEADER_HTML" ]]; then
+if [[ ! -z "$HEADER_HTML" ]]; then
     wkhtmltopdf_args+="-F header_html=@$HEADER_HTML "
 fi
 
-if [[ -z "$FOOTER_HTML" ]]; then
+if [[ ! -z "$FOOTER_HTML" ]]; then
     wkhtmltopdf_args+="-F footer_html=@$FOOTER_HTML "
 fi
 
