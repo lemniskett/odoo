@@ -7,8 +7,8 @@ if [[ $1 = "--version" ]]; then
     exit 0
 fi
 
-HEADER_HTML=$(echo "$*" | grep -o -- '--header-html [^ ]*' | cut -d ' ' -f 2)
-FOOTER_HTML=$(echo "$*" | grep -o -- '--footer-html [^ ]*' | cut -d ' ' -f 2)
+HEADER_HTML="$(echo "$*" | grep -o -- '--header-html [^ ]*' | cut -d ' ' -f 2)"
+FOOTER_HTML="$(echo "$*" | grep -o -- '--footer-html [^ ]*' | cut -d ' ' -f 2)"
 OUTPUT_PDF=$(echo "$*" | awk '{print $NF}')
 BODY_HTML=$(echo "$*" | awk '{print $(NF-1)}')
 ARGS=$(echo "$*" | sed -e "s#--header-html $HEADER_HTML##g" | sed -e "s#--footer-html $FOOTER_HTML##g" | sed -e "s#$OUTPUT_PDF##g" | sed -e "s#$BODY_HTML##g" | sed -e "s#  # #g")
@@ -18,11 +18,24 @@ if [ "${OUTPUT_PDF: -4}" != ".pdf" ]; then
     echo "Output file must end with .pdf" >&2
     exit 1
 fi
-    
-curl -X POST \
+
+wkhtmltopdf_args=""
+
+if [[ -z "$HEADER_HTML" ]]; then
+    wkhtmltopdf_args+="-F header_html=@$HEADER_HTML "
+fi
+
+if [[ -z "$FOOTER_HTML" ]]; then
+    wkhtmltopdf_args+="-F footer_html=@$FOOTER_HTML "
+fi
+
+if [[ ! -z "$WKHTMLTOPDF_DEBUG" ]]; then
+    set -x
+fi
+
+exec curl -X POST \
     -F "args=$ARGS" \
-    -F "header_html=@$HEADER_HTML" \
-    -F "footer_html=@$FOOTER_HTML" \
+    $wkhtmltopdf_args \
     -F "body_html=@$BODY_HTML" \
     -o "$OUTPUT_PDF" \
     "$WKHTMLTOPDF_SERVER/generate"
