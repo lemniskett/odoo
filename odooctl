@@ -492,7 +492,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
         labels[f'traefik.http.routers.{hostname_label_name}.service'] = hostname_label_name
         labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = hostname_args.get('middlewares', '')
         labels[f'traefik.http.services.{hostname_label_name}.loadbalancer.server.port'] = HTTP_PORT
-        if float(get_odoo_image_labels(conf['image']).get('com.mplussoftware.branch', 0)) >= 16:
+        if float(get_odoo_image_labels(conf['image']).get('com.mplus-software.branch', 0)) >= 16:
             labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/websocket`)'
         else:
             labels[f'traefik.http.routers.{hostname_label_name}-rt.rule'] = f'{hostname_matcher}(`{hostname}`) && PathPrefix(`/longpolling`)'
@@ -888,7 +888,7 @@ def ehash(ctx, conf):
     check_odoo_exists(ctx.odoo_id, conf)
     chdir(ODOOCTL_DIR)
     network = ODOOCTL_DIR[1:].replace("/", "-")
-    docker(["inspect", "--format", "{{index .Config.Labels \"com.mplussoftware.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
+    docker(["inspect", "--format", "{{index .Config.Labels \"com.mplus-software.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
 
 
 @command(description="Get network name")
