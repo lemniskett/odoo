@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086
 
 cd /opt/odoo || exit 1
 
-if [ ! -z "$ODOO_DRY_RUN" ]; then
+if [ -n "$ODOO_DRY_RUN" ]; then
     sleep infinity
 fi
 

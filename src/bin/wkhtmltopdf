@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2086
 
 export WKHTMLTOPDF_SERVER="${WKHTMLTOPDF_SERVER:-http://localhost:2777}"
 
@@ -21,15 +22,15 @@ fi
 
 wkhtmltopdf_args=""
 
-if [[ ! -z "$HEADER_HTML" ]]; then
+if [[ -n "$HEADER_HTML" ]]; then
     wkhtmltopdf_args+="-F header_html=@$HEADER_HTML "
 fi
 
-if [[ ! -z "$FOOTER_HTML" ]]; then
+if [[ -n "$FOOTER_HTML" ]]; then
     wkhtmltopdf_args+="-F footer_html=@$FOOTER_HTML "
 fi
 
-if [[ ! -z "$WKHTMLTOPDF_DEBUG" ]]; then
+if [[ -n "$WKHTMLTOPDF_DEBUG" ]]; then
     set -x
 fi
 

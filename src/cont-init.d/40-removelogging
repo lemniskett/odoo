@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
-if [ ! -z "$ODOOCONF__options__logfile" ]; then
+if [ -n "$ODOOCONF__options__logfile" ]; then
     rm -rf /etc/services.d/odootail  
 fi

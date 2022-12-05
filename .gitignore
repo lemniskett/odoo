@@ -1,7 +1,7 @@
-.apt-cache
-.pip-cache
-.traefik
-cache
-logs
-odoo-15
+/.apt-cache
+/.pip-cache
+/traefik
+/cache
+/logs
+/odoo-*
 .docker-compose.yml
