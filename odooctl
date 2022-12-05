@@ -583,7 +583,7 @@ Commands:
     print(help_string, file=stderr)
 
 
-@command(description="Reconfigures the stack", flags={'generate': 'Only generate configs', 'force': 'Force recreation of stack'})
+@command(description="Reconfigures the stack", flags={'generate': 'Only generate configs', 'force': 'Force recreation of stack', 'update': 'Update stack'})
 def reconfigure(ctx, conf):
     """
     Reconfigures the stack.
@@ -607,6 +607,9 @@ def reconfigure(ctx, conf):
 
     if ctx.generate:
         return
+
+    if ctx.update:
+        docker(["compose", "-f", ".docker-compose.yml", "pull"])
 
     if ctx.force:
         cmd = ["compose", "-f", ".docker-compose.yml", "up", "-d", "--remove-orphans", "--force-recreate"]
@@ -830,7 +833,7 @@ def attach(ctx, conf):
         print("This is an interactive screen session.\nUse Ctrl-A + D to detach from the container.")
         input("Press enter to continue...")
     
-    docker(["compose", "-f", ".docker-compose.yml", "exec", f"odoo-{ctx.odoo_id}", "screen", "-xS", "odoo"])
+    docker(["compose", "-f", ".docker-compose.yml", "exec", "-u", "odoo", f"odoo-{ctx.odoo_id}", "screen", "-xS", "odoo"])
 
 
 @command(description="List all status of Odoo instances")

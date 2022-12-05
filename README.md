@@ -10,6 +10,7 @@ pip install python-hcl2 PyYAML
 Example Odoofile with postgresql included is available in `example`
 
 ## Odoo Configuration
+
 Instead of config file, you can use `config` scope to configure the container:
 ```hcl
 odoo "15" {
@@ -48,11 +49,11 @@ odooctl reconfigure
 
 > Note 1: It's discouraged to change the values of `options.data_dir`.
 
-> Note 2: For changing `options.addons_path`, add `server/addons` (or `s/addons`, if you want a shorter string).
+> Note 2: For changing `options.addons_path`, add `server/addons` (or `s/addons`).
 
 Also, there's additional environment variables to configure the container:
 - `APT_INSTALL`: Space-separated list of packages to install.
-- `OARGS`: Additional arguments to pass to odoo, defaults to `--config=/opt/odoo/etc/odoo.conf`.
+- `ODOO_ARGS`: Additional arguments to pass to odoo, defaults to `--config=/opt/odoo/etc/odoo.conf`.
 - `ODOO_DRY_RUN`: If set to anything, the container will not start odoo, but will initialize all the required things to run odoo in the container.
 - `ODOO_DISABLE_TTY`: If set to anything, will disable screen.
 - `ODOO_STAGE`: Marks the state of the service, particularly useful for prestart and poststop hooks, values are `init`, `update`, `start`

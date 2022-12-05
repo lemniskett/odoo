@@ -8,7 +8,7 @@ traefik {
     email = "syahrial@mplus.software"
     provider = "http"
     secrets = {
-      cloudflare_dns_api_token = "IFpdJyfb7Q1QkZ6blDi7dRnK96M9ujnS"
+      cloudflare_dns_api_token = "YOUR_API_TOKEN_HERE"
     }
   }
   proxy = {
@@ -24,8 +24,6 @@ traefik {
 odoo "15" {
   version = "15.0"
   hostnames = ["localhost", "example.localhost"]
-  xmlrpc_port = 8069
-  longpolling_port = 8072
   config = {
     options = {
       workers = 2
@@ -38,6 +36,7 @@ odoo "15" {
       addons_path = "server/addons"
     }
   }
+  environment 
   mounts = {
     "./cache" = "/var/cache"
   }
@@ -46,10 +45,12 @@ odoo "15" {
   }
 }
 
+# Optional
 wkhtmltopdf_server {
   enable = true
 }
 
+# Optional
 logrotate {
   enable = true
 }

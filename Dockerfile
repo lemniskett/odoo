@@ -3,7 +3,6 @@ ARG \
     ODOO_VERSION
 FROM python:${PYTHON_VERSION}-bullseye as builder
 ARG \
-    ARCH \
     ODOO_VERSION \
     DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
@@ -32,7 +31,6 @@ ARG \
     DEBIAN_FRONTEND=noninteractive \
     S6_VERSION=3.1.2.1 \
     NODEJS_VERSION=16 \
-    ARCH \
     ODOO_VERSION 
 ENV PYTHONUNBUFFERED=1
 
@@ -100,7 +98,7 @@ ENV \
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
     ODOOCONF__options__addons_path=server/addons \
     ODOOCONF__options__data_dir=data \
-    ODOOCONF__options__logfile=logs/odoo-${ODOO_VERSIONSION}.log \
+    ODOOCONF__options__logfile=logs/odoo-${ODOO_VERSION}.log \
     ODOOCONF__options__list_db=True \
     ODOO_ARGS=--config=etc/odoo.conf \
     ODOO_STAGE=start
