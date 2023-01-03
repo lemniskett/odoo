@@ -354,6 +354,8 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
             traefik['entryPoints'][entrypoint]['http']['middlewares'] = middlewares
 
     for odoo_id in odoo_conf:
+        if odoo_conf[odoo_id].get('enabled', True) == False:
+            continue
         image, build = get_image_build(odoo_conf[odoo_id]['image'])
         compose['services'][f'odoo-{odoo_id}'] = {
             'hostname': f'odoo-{odoo_id}',
