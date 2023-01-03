@@ -507,9 +507,6 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
             labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.certresolver'] = 'default'
             labels[f'traefik.http.routers.{hostname_label_name}-rt.tls.domains[0].main'] = hostname.replace("{subdomain:[a-z0-9_-]+}", "*")
 
-        labels[f'traefik.http.routers.{hostname_label_name}.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}.middlewares'][:-1]
-        labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'] = labels[f'traefik.http.routers.{hostname_label_name}-rt.middlewares'][:-1]
-
     return labels
 
 
