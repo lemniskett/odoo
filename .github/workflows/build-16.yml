@@ -11,7 +11,7 @@ on:
 jobs:
   build-16:
     env:
-      ODOO_VERSION: '16.0'
+      ODOO_VERSION: "16.0"
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Dockerfile
@@ -27,7 +27,7 @@ jobs:
       - name: Checkout Odoo enterprise
         uses: actions/checkout@v3
         with:
-          repository: git@github.com:odoo/enterprise.git
+          repository: odoo/enterprise
           path: enterprise
           ssh-key: ${{ secrets.ODOO_ENTERPRISE_SSH_KEY }}
           ref: "${{ env.ODOO_VERSION }}"
