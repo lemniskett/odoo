@@ -50,5 +50,4 @@ jobs:
           platforms: linux/amd64
           push: true
           tags: |
-            quay.io/mplus-software/odoo:latest
             quay.io/mplus-software/odoo:${{ env.ODOO_VERSION }}
