@@ -1,4 +1,4 @@
-name: Build Odoo
+name: Build Odoo 15
 
 on:
   push:
