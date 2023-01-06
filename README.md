@@ -1,13 +1,16 @@
 # Odoo Container
 This is an Odoo container image, you can use this as a base image for a more customized odoo image.
 
+## Registry
+```sh
+docker pull quay.io/mplus-software/odoo:<version>
+```
+`version` is the odoo branch that can be found in [Odoo repository](https://github.com/odoo/odoo).
+
 ## Odooctl Dependencies
 ```sh
 pip install python-hcl2 PyYAML
 ```
-
-## Example Usage
-Example Odoofile with postgresql included is available in `example`
 
 ## Odoo Configuration
 This docker image is meant to be used with odooctl, An example Odoofile can be found in the root of this repository.
