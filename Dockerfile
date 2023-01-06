@@ -1,13 +1,11 @@
 ARG \
-    PYTHON_VERSION=3.7 \
-    ODOO_VERSION
+    PYTHON_VERSION=3.7
 FROM python:${PYTHON_VERSION}-bullseye as builder
 ARG \
-    ODOO_VERSION \
     DEBIAN_FRONTEND=noninteractive
 ENV PYTHONUNBUFFERED=1
+COPY ./odoo/requirements.txt /tmp/requirements.txt
 RUN set -ex; \
-    curl -L https://raw.githubusercontent.com/odoo/odoo/${ODOO_VERSION}/requirements.txt -o /tmp/requirements.txt; \
     apt update; \
     apt upgrade -y; \
     apt install --no-install-recommends -y \
@@ -31,7 +29,6 @@ ARG \
     DEBIAN_FRONTEND=noninteractive \
     S6_VERSION=3.1.2.1 \
     NODEJS_VERSION=16 \
-    ODOO_VERSION 
 ENV PYTHONUNBUFFERED=1
 
 # Install Odoo Dependencies
@@ -62,13 +59,10 @@ RUN set -ex; \
 # Install Odoo
 ENV PIP_CACHE_DIR /opt/odoo/pip-cache
 RUN set -ex; \
-    curl -L https://github.com/odoo/odoo/archive/${ODOO_VERSION}.tar.gz \
-        -o /tmp/odoo.src.tar.gz; \
     mkdir -p /opt/odoo/server /opt/odoo/logs /opt/odoo/data /opt/odoo/etc /opt/odoo/pip-cache /opt/odoo/extra-addons; \
     cd /opt/odoo; \
-    tar xf /tmp/odoo.src.tar.gz --strip-components=1 -C /opt/odoo/server; \
-    rm -f /tmp/odoo.src.tar.gz; \
-    ln -s server s; ln -s extra-addons e;
+    ln -sf server s; ln -sf extra-addons e;
+COPY ./odoo/* /opt/odoo/server/
 
 # Install S6
 ADD https://github.com/just-containers/s6-overlay/releases/download/v${S6_VERSION}/s6-overlay-noarch.tar.xz /tmp
@@ -98,7 +92,7 @@ ENV \
     S6_CMD_WAIT_FOR_SERVICES_MAXTIME=0 \
     ODOOCONF__options__addons_path=server/addons \
     ODOOCONF__options__data_dir=data \
-    ODOOCONF__options__logfile=logs/odoo-${ODOO_VERSION}.log \
+    ODOOCONF__options__logfile=logs/odoo.log \
     ODOOCONF__options__list_db=True \
     ODOO_ARGS=--config=etc/odoo.conf \
     ODOO_STAGE=start
