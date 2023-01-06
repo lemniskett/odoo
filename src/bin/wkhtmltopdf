@@ -32,6 +32,8 @@ fi
 
 if [[ -n "$WKHTMLTOPDF_DEBUG" ]]; then
     set -x
+else
+    wkhtmltopdf_args+="--silent "
 fi
 
 exec curl -X POST \

@@ -10,6 +10,7 @@ pip install python-hcl2 PyYAML
 Example Odoofile with postgresql included is available in `example`
 
 ## Odoo Configuration
+This docker image is meant to be used with odooctl, An example Odoofile can be found in the root of this repository.
 
 Instead of config file, you can use `config` scope to configure the container:
 ```hcl

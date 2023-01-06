@@ -350,11 +350,13 @@ def generate_conf(traefik_conf, odoo_conf, wkhtmltopdf_server_conf, logrotate_co
 
     middlewares = traefik_conf.get('middlewares', [])
     if middlewares:
-        for entrypoint in traefik['entryPoints']:
-            traefik['entryPoints'][entrypoint]['http']['middlewares'] = middlewares
+        if ssl:
+            traefik['entryPoints']['websecure']['http']['middlewares'] = middlewares
+        else:
+            traefik['entryPoints']['web']['http']['middlewares'] = middlewares
 
     for odoo_id in odoo_conf:
-        if odoo_conf[odoo_id].get('enabled', True) == False:
+        if odoo_conf[odoo_id].get('enable', True) == False:
             continue
         image, build = get_image_build(odoo_conf[odoo_id]['image'])
         compose['services'][f'odoo-{odoo_id}'] = {
@@ -480,7 +482,7 @@ def generate_traefik_labels(odoo_id, entrypoint, conf, trusted_ips, ssl):
         'traefik.enable': 'true',
     }
     for hostname_conf in hostnames:
-        hostname_conf = hostname_conf.split(',')
+        hostname_conf = hostname_conf.split(';')
         hostname_args = {kv.split('=')[0]: kv.split('=')[1] for kv in hostname_conf[1:]}
 
         hostname = hostname_conf[0]
@@ -559,6 +561,9 @@ def check_odoo_exists(odoo_id, conf):
     odoo_conf = parse_odoo_conf(conf.get('odoo', {}))
     if odoo_id not in odoo_conf:
         write_err(f"Odoo {odoo_id} not found in config file")
+        exit(1)
+    if not odoo_conf[odoo_id].get('enable', True):
+        write_err(f"Odoo {odoo_id} is disabled")
         exit(1)
 
 
