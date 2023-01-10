@@ -35,7 +35,7 @@ jobs:
       - name: Get Odoo enterprise hash
         id: odoo-enterprise-hash
         run: |
-          echo "hash=$(git -C enterprise rev-parse --short HEAD)" >> $GITHUB_OUTPUT
+          echo "hash=$(git -C enterprise rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Append Dockerfile
         run: |
