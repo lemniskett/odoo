@@ -938,14 +938,14 @@ def psql(ctx, conf):
     docker(cmd)
 
 
-@command(description="Launches rootkit shell (for user-namespaced container environment)", flags={"user": "User to run as"})
-def rkshell(ctx, conf):
+@command(description="Launches root shell (for user-namespaced container environment)", flags={"user": "User to run as"})
+def rshell(ctx, conf):
     """
     Launch rootshell (for user-namespaced container environment)
     """
     chdir(ODOOCTL_DIR)
     user = ctx.user if ctx.user else "root"
-    docker(["run", "--rm", "--interactive", "--tty", "--volume", f"{environ['PWD']}:/mnt", 
+    docker(["run", "--rm", "--interactive", "--tty", "--volume", f"{ODOOCTL_DIR}:/mnt", 
         "--user", user, "--workdir", "/mnt", f"alpine:latest"])
 
 
