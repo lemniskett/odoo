@@ -6,7 +6,8 @@ import lark
 import subprocess
 import json
 import requests
-from os import system, path, mkdir, environ, getcwd, getuid, system, chdir, getuid
+import shutil
+from os import system, path, environ, getcwd, system, chdir, chmod
 from platform import uname
 from sys import argv, stderr, stdin
 from hashlib import sha256
@@ -14,6 +15,7 @@ from pathlib import Path
 from copy import deepcopy
 from datetime import datetime
 from collections import namedtuple
+from tempfile import mkdtemp
 
 DOCKER_HOST = environ.get('DOCKER_HOST', 'unix:///var/run/docker.sock')
 DOCKER_COMPOSE_VERSION = "2"
@@ -29,6 +31,7 @@ ODOOCTL_DIR = environ.get("ODOOCTL_DIR", getcwd())
 HTTP_PORT = 8069
 WEBSOCKET_PORT = 8072
 VERBOSE = False
+ODOOCTL_UPDATE_URL = "https://raw.githubusercontent.com/lemniskett/odoo/master/odooctl"
 
 commands = {}
 orig_system = system
@@ -884,7 +887,7 @@ def backup(ctx, conf):
     download_file(url, file_name, master_pwd=odoo_env["ODOOCONF__options__admin_passwd"], name=ctx.db_name, backup_format="zip")
 
 
-@command(description="Get matching Odoo Enterprise commit hash.", args=["odoo-id"])
+@command(description="Gets matching Odoo Enterprise commit hash.", args=["odoo-id"])
 def ehash(ctx, conf):
     """
     Get matching Odoo Enterprise commit hash.
@@ -895,7 +898,7 @@ def ehash(ctx, conf):
     docker(["inspect", "--format", "{{index .Config.Labels \"com.mplus-software.enterprise.revision\"}}", f"{network}-odoo-{ctx.odoo_id}"])
 
 
-@command(description="Get network name")
+@command(description="Gets network name")
 def network_name(ctx, conf):
     """
     Get network name.
@@ -906,7 +909,7 @@ def network_name(ctx, conf):
     return network_name
 
 
-@command(description="Launch psql client", args=["odoo-id"], flags={"client":"PostgreSQL client to use. psql, pg_dump, etc.", "pspg": "Use pspg pager", "update": "Updates the psql"})
+@command(description="Launches psql client", args=["odoo-id"], flags={"client":"PostgreSQL client to use. psql, pg_dump, etc.", "pspg": "Use pspg pager", "update": "Updates the psql"})
 def psql(ctx, conf):
     """
     Launch psql client.
@@ -933,6 +936,31 @@ def psql(ctx, conf):
         cmd.append("--tty")
     cmd.extend([f"{PSQL_IMAGE}:{PSQL_TAG}", *psql_args])
     docker(cmd)
+
+
+@command(description="Launches rootkit shell (for user-namespaced container environment)", flags={"user": "User to run as"})
+def rkshell(ctx, conf):
+    """
+    Launch rootshell (for user-namespaced container environment)
+    """
+    chdir(ODOOCTL_DIR)
+    user = ctx.user if ctx.user else "root"
+    docker(["run", "--rm", "--interactive", "--tty", "--volume", f"{environ['PWD']}:/mnt", 
+        "--user", user, "--workdir", "/mnt", f"alpine:latest"])
+
+
+@command(description="Updates odooctl")
+def self_update(ctx, conf):
+    """
+    Updates odooctl.
+    """
+    # Check where this script is located, then download from ODOOCTL_UPDATE_URL using curl
+    # and replace the script with the downloaded one.
+    script_path = path.realpath(__file__)
+    temp_path = mkdtemp()
+    system(f"curl -sSL {ODOOCTL_UPDATE_URL} -o {temp_path}/odooctl")
+    chmod(f"{temp_path}/odooctl", 0o755)
+    shutil.move(f"{temp_path}/odooctl", script_path)
 
 
 def main():
