@@ -25,6 +25,7 @@ odoo "15" {
   enable = true                           # Enable odoo, default to true if odoo block is present
   image = "quay.io/mplus-software/odoo:16.0"  # Odoo image, can also be prefixed with "build://" to build from local directory, e. g. "build://odoo-15/src"
   hostnames = ["localhost", "foo.localhost,middlewares=foodb@file", "*.localhost"]  # Hostnames for odoo, can be wildcard
+  apt = ["libcups2-dev"]                  # Debian packages to install, intended to be used for development purposes, for production, build your own image.
   pip = ["phonenumbers"]                  # Pip packages to install, intended to be used for development purposes, for production, build your own image.
   pip_file = ["/requirement.txt"]         # Pip packages to install from file, intended to be used for development purposes, for production, build your own image.
   config = {                              # Odoo config
